@@ -1,3 +1,4 @@
+import { ThemeProvider } from "@/components/theme-provider";
 import type { Metadata } from "next";
 import { Gantari } from "next/font/google";
 import "./globals.css";
@@ -26,8 +27,23 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${gantari.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col" suppressHydrationWarning>{children}</body>
+      <body 
+        className="min-h-full flex flex-col" 
+        suppressHydrationWarning
+      
+      >
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
+      </body>
+
     </html>
   );
 }

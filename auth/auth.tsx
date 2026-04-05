@@ -32,9 +32,7 @@ export function Auth() {
       return;
     }
   }
-
-
-
+  
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
