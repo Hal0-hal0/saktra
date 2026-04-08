@@ -44,23 +44,11 @@ const Admin = () => {
 
   return (
     <div>
-<<<<<<< Updated upstream
-      <ModeToggle />
-      <Button onClick={logout}>Logout</Button>
-      <Button onClick={getUserDetails}>Get User Details</Button>
-=======
-      <h1>Admin Page</h1>
->>>>>>> Stashed changes
       <h3>{profile?.role}</h3>
       <h3>{profile?.id}</h3>
       <h3>{profile?.user_id}</h3>
       <h3>{profile?.created_at}</h3>
 
-<<<<<<< Updated upstream
-=======
-      <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Nihil cum quaerat dignissimos quos fugit, nostrum voluptatum ratione officiis voluptates corrupti. Tempore placeat numquam incidunt quae sunt veritatis, cupiditate alias atque.</p>
-
->>>>>>> Stashed changes
 
 
     </div>
