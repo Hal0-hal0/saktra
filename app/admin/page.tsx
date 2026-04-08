@@ -2,12 +2,13 @@
 import React, { use, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/supabase-client';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { ModeToggle } from '@/components/mode-toggle';
+import { SkeletonText } from '@/components/skeleton/skeleton-text';
+
 
 const Admin = () => {
     const router = useRouter();
     const [profile, setProfile] = React.useState<any>(null);
+    const [loading, setLoading] = React.useState(true);
   
     const logout = async () => {
       await supabase.auth.signOut();
@@ -24,6 +25,7 @@ const Admin = () => {
       .single() // we expect only one profile per user
 
       setProfile(profile);
+      setLoading(false);
     }
 
     const fetchProfile = async () => {  //just to see it in the console
@@ -31,12 +33,14 @@ const Admin = () => {
         console.log('User claims:', user); // log the user claims to see what we get
     }
 
-    
-
     useEffect(() => {
       getUserDetails();
       fetchProfile();
     }, [])
+
+    if (loading) {
+      return <SkeletonText />
+    }
 
   return (
     <div>
