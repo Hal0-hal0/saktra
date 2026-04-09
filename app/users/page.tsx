@@ -38,16 +38,7 @@ const Users = () => {
 
   return (
     <div>
-      <div>
-        <ModeToggle />
-      </div>
-        <h1>users</h1>
-        <Button onClick={logout} className='bg-[var(--destructive)]'>Logout</Button>
-        <h3>{profile?.role}</h3>
-        <h3>{profile?.user_name}</h3>
-        <h3>{profile?.id}</h3>
-        <h3>{profile?.user_id}</h3>
-        <h3>{profile?.created_at}</h3>
+        <h1>Home Page</h1>
     </div>
   )
 }

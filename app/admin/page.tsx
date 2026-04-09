@@ -44,13 +44,7 @@ const Admin = () => {
 
   return (
     <div>
-      <h3>{profile?.role}</h3>
-      <h3>{profile?.id}</h3>
-      <h3>{profile?.user_id}</h3>
-      <h3>{profile?.created_at}</h3>
-
-
-
+      <h1>Home Page</h1>
     </div>
   )
 }
