@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase/supabase-client"
 import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from "../mode-toggle";
+import { LogOutConfirmation } from "@/auth/logOutConfirmation";
 import {
   Avatar,
   AvatarFallback,
@@ -123,11 +124,13 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={logout}>
-              <LogOutIcon
-              />
-              Log out
-            </DropdownMenuItem>
+            <LogOutConfirmation>
+              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                <LogOutIcon
+                />
+                Log out
+              </DropdownMenuItem>
+            </LogOutConfirmation>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
