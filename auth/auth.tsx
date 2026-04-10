@@ -24,6 +24,11 @@ export function Auth() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
+    if(!email || !password) {
+      toast.error('Please enter you Email and Password!', {position: "top-center"})
+      return;
+    }
+
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -62,7 +67,6 @@ export function Auth() {
                 onChange={(e:ChangeEvent<HTMLInputElement>) =>
                   setEmail(e.target.value)
                 }
-                required
                 value={email}
               />
             </div>
@@ -79,7 +83,6 @@ export function Auth() {
               <Input 
                 id="password" 
                 type="password" 
-                required 
                 onChange={(e:ChangeEvent<HTMLInputElement>) =>
                   setPassword(e.target.value)
                 }
