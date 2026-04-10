@@ -2,6 +2,7 @@
 import { useState, FormEvent, ChangeEvent } from "react";
 import { supabase } from "@/lib/supabase/supabase-client";
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner";
 import {
   Card,
   CardAction,
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { sign } from "crypto";
 
 export function Auth() {
   const [email, setEmail] = useState("");
@@ -28,9 +30,16 @@ export function Auth() {
     });
 
     if (signInError) {
-      console.log("Error signing up:", signInError.message);
+      if (signInError.message === "Invalid login credentials"){
+        toast.error('Invalid email or password', {position: "top-center"})
+      } else if (signInError.message === 'Email not confirmed') {
+        toast.error('Please verify your email first', {position: "top-center"})
+      } else {
+        toast.error(signInError.message, {position: "top-center"})
+      }
       return;
     }
+    toast.success("Logged in succesfully!", {position:"top-center"})
   }
   
   return (
@@ -78,7 +87,7 @@ export function Auth() {
               />
             </div>
               <CardFooter className="flex-col gap-2">
-                <Button type="submit" className="w-full">
+                <Button type="submit" className="w-full" >
                   Login
                 </Button>
             </CardFooter>

@@ -34,7 +34,7 @@ const data = {
     },
     {
       title: "Members",
-      url: "/admin/profile",
+      url: "#",
       icon: (
         <ListIcon
         />
@@ -128,14 +128,6 @@ const data = {
       url: "#",
       icon: (
         <CircleHelpIcon
-        />
-      ),
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: (
-        <SearchIcon
         />
       ),
     },

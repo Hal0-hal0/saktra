@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from "../mode-toggle";
 import { LogOutConfirmation } from "@/auth/logOutConfirmation";
+import Link from "next/link";
 import {
   Avatar,
   AvatarFallback,
@@ -107,11 +108,14 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <Link href={'/admin/profile'}>
+                <DropdownMenuItem >
                 <CircleUserRoundIcon
                 />
-                Account
+                Profile
               </DropdownMenuItem>
+              </Link>
+              
               <DropdownMenuItem>
                 <CreditCardIcon
                 />
