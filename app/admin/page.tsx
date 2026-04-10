@@ -4,7 +4,6 @@ import { supabase } from '@/lib/supabase/supabase-client';
 import { useRouter } from 'next/navigation';
 import { SkeletonText } from '@/components/skeleton/skeleton-text';
 
-
 const Admin = () => {
     const router = useRouter();
     const [profile, setProfile] = React.useState<any>(null);

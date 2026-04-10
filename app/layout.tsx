@@ -2,6 +2,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import type { Metadata } from "next";
 import { Gantari } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "@/components/ui/sonner";
 
 const gantari = Gantari({
   variable: "--font-sans",
@@ -42,6 +43,7 @@ export default function RootLayout({
       
         >
           {children}
+          <Toaster/>
         </ThemeProvider>
       </body>
 

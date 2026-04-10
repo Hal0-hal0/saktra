@@ -33,15 +33,15 @@ const data = {
       ),
     },
     {
-      title: "Profile Test",
-      url: "/admin/profile",
+      title: "Members",
+      url: "#",
       icon: (
         <ListIcon
         />
       ),
     },
     {
-      title: "Analytics",
+      title: "Depeartment",
       url: "#",
       icon: (
         <ChartBarIcon
@@ -49,18 +49,10 @@ const data = {
       ),
     },
     {
-      title: "Projects",
+      title: "Events",
       url: "#",
       icon: (
         <FolderIcon
-        />
-      ),
-    },
-    {
-      title: "Team",
-      url: "#",
-      icon: (
-        <UsersIcon
         />
       ),
     },
@@ -139,18 +131,10 @@ const data = {
         />
       ),
     },
-    {
-      title: "Search",
-      url: "#",
-      icon: (
-        <SearchIcon
-        />
-      ),
-    },
   ],
-  documents: [
+  operations: [
     {
-      name: "Data Library",
+      name: "Evaluations",
       url: "#",
       icon: (
         <DatabaseIcon
@@ -158,7 +142,7 @@ const data = {
       ),
     },
     {
-      name: "Reports",
+      name: "Attendance",
       url: "#",
       icon: (
         <FileChartColumnIcon
@@ -166,7 +150,15 @@ const data = {
       ),
     },
     {
-      name: "Word Assistant",
+      name: "Organizations",
+      url: "#",
+      icon: (
+        <FileIcon
+        />
+      ),
+    },
+    {
+       name: "Reports",
       url: "#",
       icon: (
         <FileIcon
@@ -196,7 +188,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
+        <NavDocuments items={data.operations} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
