@@ -30,10 +30,6 @@ export default function Home() {
         .eq('user_id', session.user.id)
         .single()
 
-        console.log('profile:', profile)  // ← what does this log?
-        console.log('error:', error)      // ← any error?
-        console.log('user id:', session.user.id)  // ← what is the user id?
-
         if(profile?.role === 'admin') {
           router.push('/admin'); // redirect to /admin if user is admin
         } else {

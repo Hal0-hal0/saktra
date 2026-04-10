@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { NavDocuments } from "@/components/comp-admin/nav-documents"
+import { NavOperations } from "@/components/comp-admin/nav-operations"
 import { NavMain } from "@/components/comp-admin/nav-main"
 import { NavSecondary } from "@/components/comp-admin/nav-secondary"
 import { NavUser } from "@/components/comp-admin/nav-user"
@@ -34,7 +34,7 @@ const data = {
     },
     {
       title: "Members",
-      url: "#",
+      url: "/admin/members",
       icon: (
         <ListIcon
         />
@@ -42,7 +42,7 @@ const data = {
     },
     {
       title: "Depeartment",
-      url: "#",
+      url: "/admin/department",
       icon: (
         <ChartBarIcon
         />
@@ -50,7 +50,7 @@ const data = {
     },
     {
       title: "Events",
-      url: "#",
+      url: "/admin/eventsPage",
       icon: (
         <FolderIcon
         />
@@ -135,7 +135,7 @@ const data = {
   operations: [
     {
       name: "Evaluations",
-      url: "#",
+      url: "/admin/evaluation",
       icon: (
         <DatabaseIcon
         />
@@ -143,7 +143,7 @@ const data = {
     },
     {
       name: "Attendance",
-      url: "#",
+      url: "/admin/attendance",
       icon: (
         <FileChartColumnIcon
         />
@@ -151,7 +151,7 @@ const data = {
     },
     {
       name: "Organizations",
-      url: "#",
+      url: "/admin/organizations",
       icon: (
         <FileIcon
         />
@@ -159,7 +159,7 @@ const data = {
     },
     {
        name: "Reports",
-      url: "#",
+      url: "/admin/reportsPage",
       icon: (
         <FileIcon
         />
@@ -188,7 +188,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavDocuments items={data.operations} />
+        <NavOperations items={data.operations} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
