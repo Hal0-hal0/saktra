@@ -180,7 +180,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <Link href="/admin">
                 <CommandIcon className="size-5!" />
-                <span className="text-base font-semibold">SackTrack</span>
+                <span className="text-base font-semibold">SackTra</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

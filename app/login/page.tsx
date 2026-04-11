@@ -26,15 +26,21 @@ export default function Home() {
       if (session) {
         const {data:profile,error} = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, status')
         .eq('user_id', session.user.id)
         .single()
 
-        if(profile?.role === 'admin') {
-          router.push('/admin'); // redirect to /admin if user is admin
+        if (profile?.status === 'active') {
+          if(profile?.role === 'admin') {
+            router.push('/admin'); // redirect to /admin if user is admin
+          } else {
+            router.push('/users'); // redirect to /users if user is not admin
+          }
         } else {
-          router.push('/users'); // redirect to /users if user is not admin
+          router.push('/inactive')
         }
+
+        
       } // redirect to /users on login
     });
 
