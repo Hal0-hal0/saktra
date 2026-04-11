@@ -14,7 +14,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, UsersIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, DatabaseIcon, FileChartColumnIcon, FileIcon, CommandIcon } from "lucide-react"
+import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, UsersIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, DatabaseIcon, FileChartColumnIcon, FileIcon, CommandIcon, FoldersIcon } from "lucide-react"
+import { NavOperations } from "../comp-admin/nav-operations"
 
 const data = {
   user: {
@@ -32,34 +33,26 @@ const data = {
       ),
     },
     {
-      title: "Profile Test",
-      url: "/users/profile",
-      icon: (
-        <ListIcon
-        />
-      ),
-    },
-    {
-      title: "Analytics",
-      url: "#",
+      title: "My Performance",
+      url: "/users/myPerformance",
       icon: (
         <ChartBarIcon
         />
       ),
     },
     {
-      title: "Projects",
-      url: "#",
+      title: "Members",
+      url: "/users/members",
       icon: (
-        <FolderIcon
+        <ListIcon
         />
       ),
     },
     {
-      title: "Team",
-      url: "#",
+      title: "Events",
+      url: "/users/events",
       icon: (
-        <UsersIcon
+        <FolderIcon
         />
       ),
     },
@@ -138,37 +131,21 @@ const data = {
         />
       ),
     },
-    {
-      title: "Search",
-      url: "#",
-      icon: (
-        <SearchIcon
-        />
-      ),
-    },
   ],
-  documents: [
+  operations: [
     {
-      name: "Data Library",
-      url: "#",
+      name: "Evaluations",
+      url: "/users/evaluations",
       icon: (
         <DatabaseIcon
         />
       ),
     },
     {
-      name: "Reports",
-      url: "#",
+      name: "Attendance",
+      url: "/users/attendance",
       icon: (
         <FileChartColumnIcon
-        />
-      ),
-    },
-    {
-      name: "Word Assistant",
-      url: "#",
-      icon: (
-        <FileIcon
         />
       ),
     },
@@ -187,7 +164,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <Link href="/admin">
                 <CommandIcon className="size-5!" />
-                <span className="text-base font-semibold">SackTrack</span>
+                <span className="text-base font-semibold">SackTra</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -195,7 +172,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        
+        <NavOperations items={data.operations} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
