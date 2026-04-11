@@ -44,6 +44,21 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
+//block inactive user/admin
+  if (user && request.nextUrl.pathname.startsWith('/users') || user && request.nextUrl.pathname.startsWith('/admin')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('status')
+      .eq('user_id', user.sub)
+      .single()
+
+    if (profile?.status === 'inactive') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/inactive' 
+      return NextResponse.redirect(url)
+    }
+  }
+
   // admin route protection
   if (request.nextUrl.pathname.startsWith('/admin')) {
     if (!user) {
