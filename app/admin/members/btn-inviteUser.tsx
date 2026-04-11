@@ -26,6 +26,7 @@ import { toast } from 'sonner'
 
   
 export function ButtonInviteUser() {
+  const [open, setOpen] = useState(false)
   const [selectedRole, setSelectedRole] = useState('user')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -40,7 +41,7 @@ export function ButtonInviteUser() {
 
   const handleCreateUser = async () => {
     if (!email || !selectedRole || !password) {
-      toast.error('Please fill in all fields')
+      toast.error('Please fill in all fields' ,{position:"top-center"})
       return
     }
 
@@ -57,35 +58,21 @@ export function ButtonInviteUser() {
       return
     }
 
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    const { error: roleError } = await supabase
-    .from('profiles')
-    .update({ role: selectedRole })
-    .eq('user_id', data.user.id)
-
-    console.log('roleError:', roleError)
-    console.log('user id:', data.user.id)
-    console.log('selected role:', selectedRole)
-
-    if (error) {
-      toast.error(error, {position:'top-center'})
-      return
-    }
-
     toast.success('User created successfully!', {position:'top-center'})
+    setOpen(false)
     setEmail('')
     setPassword('')
   }
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <form>
         <DialogTrigger asChild>
           <Button variant="default">Invite a Member</Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Invite User</DialogTitle>
+            <DialogTitle>Invite</DialogTitle>
             <DialogDescription>
               Upon submission, the user will be sent an email invitation to access SackTrack.            
             </DialogDescription>
