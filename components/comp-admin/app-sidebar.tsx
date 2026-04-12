@@ -42,7 +42,7 @@ const data = {
       ),
     },
     {
-      title: "Depeartment",
+      title: "Department",
       url: "/admin/department",
       icon: (
         <ChartBarIcon
