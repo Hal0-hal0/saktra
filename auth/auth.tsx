@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { sign } from "crypto";
+import css from "styled-jsx/css";
 
 export function Auth() {
   const [email, setEmail] = useState("");
@@ -46,14 +47,16 @@ export function Auth() {
     }
     toast.success("Logged in succesfully!", {position:"top-center"})
   }
-  
+
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
+    <Card className="w-full max-w-sm backdrop-blur-md bg-white/70 dark:bg-black/40 border-white/20">
+      <CardHeader className="flex flex-col items-center text-center">
         <CardTitle>Login to your account</CardTitle>
+
         <CardDescription>
           Enter your email below to login to your account
         </CardDescription>
+
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit}>
@@ -80,9 +83,9 @@ export function Auth() {
                   Forgot your password?
                 </a>
               </div>
-              <Input 
-                id="password" 
-                type="password" 
+              <Input
+                id="password"
+                type="password"
                 onChange={(e:ChangeEvent<HTMLInputElement>) =>
                   setPassword(e.target.value)
                 }

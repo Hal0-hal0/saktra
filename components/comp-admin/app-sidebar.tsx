@@ -6,6 +6,7 @@ import { NavOperations } from "@/components/comp-admin/nav-operations"
 import { NavMain } from "@/components/comp-admin/nav-main"
 import { NavSecondary } from "@/components/comp-admin/nav-secondary"
 import { NavUser } from "@/components/comp-admin/nav-user"
+import  Image  from "next/image"
 import {
   Sidebar,
   SidebarContent,
@@ -178,9 +179,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:p-1.5! "
             >
-              <Link href="/admin">
-                <CommandIcon className="size-5!" />
-                <span className="text-base font-semibold">SackTra</span>
+              <Link href="/admin" className="group flex items-center">
+
+                {/* Default Logo */}
+                <Image
+                  src="/images/saktra-hor-logo-pur.png"
+                  alt="SAKTRA Logo"
+                  width={120}
+                  height={40}
+                />
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
