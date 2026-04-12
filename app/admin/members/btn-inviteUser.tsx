@@ -24,7 +24,7 @@ import {
 import { useState } from "react"
 import { toast } from 'sonner'
 
-  
+
 export function ButtonInviteUser() {
   const [open, setOpen] = useState(false)
   const [selectedRole, setSelectedRole] = useState('user')
@@ -55,10 +55,9 @@ export function ButtonInviteUser() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, role:selectedRole, position:selectedPosition,department:department })
     })
-    
     const { data, error } = await res.json()
-    
-    if (error) {         
+
+    if (error) {
       toast.error(error, {position:'top-center'})
       setSubmit(false)
       return
@@ -105,36 +104,36 @@ export function ButtonInviteUser() {
     <Dialog open={open} onOpenChange={setOpen}>
       <form>
         <DialogTrigger asChild>
-          <Button variant="default">Invite a Member</Button>
+          <Button variant="default">Invite a KaSAKDAG</Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-sm" >
           <DialogHeader>
             <DialogTitle>Invite</DialogTitle>
             <DialogDescription>
-              Upon submission, the user will be sent an email invitation to access SackTrack.            
+              Upon submission, the user will be sent an email invitation to access SAKTRA.
             </DialogDescription>
           </DialogHeader>
           <FieldGroup>
             <Field>
               <Label htmlFor="name-1">Email</Label>
-              <Input 
-                id="name-1" 
-                name="name" 
-                placeholder="m@gmail.com"  
+              <Input
+                id="name-1"
+                name="name"
+                placeholder="youremail@gmail.com"
                 type="email"
-                onChange={handleEmailChange} 
+                onChange={handleEmailChange}
               />
-              
+
             </Field>
             <Field>
               <Label htmlFor="username-1">Temporary Password</Label>
-              <Input 
-                id="username-1" 
-                name="password" 
-                placeholder="email-year" 
-                value={password} 
+              <Input
+                id="username-1"
+                name="password"
+                placeholder="email-year"
+                value={password}
                 type="text"
-                onChange={(e) => setPassword(e.target.value)} 
+                onChange={(e) => setPassword(e.target.value)}
                 readOnly
               />
             </Field>
@@ -187,7 +186,7 @@ export function ButtonInviteUser() {
             </DialogClose>
             <Button onClick={handleCreateUser}>
               {submit &&  <><Spinner data-icon="inline-start" /></>}
-              
+
               Add User
             </Button>
           </DialogFooter>
