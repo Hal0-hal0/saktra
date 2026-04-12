@@ -87,7 +87,7 @@ export function ButtonInviteUser() {
           <DialogHeader>
             <DialogTitle>Invite User</DialogTitle>
             <DialogDescription>
-              Upon submission, the user will be sent an email invitation to access SackTrack.
+              Upon submission, the user will be sent an email invitation to access SAKTRA.
             </DialogDescription>
           </DialogHeader>
           <FieldGroup>
@@ -96,7 +96,7 @@ export function ButtonInviteUser() {
               <Input
                 id="name-1"
                 name="name"
-                placeholder="m@gmail.com"
+                placeholder="youremail@gmail.com"
                 type="email"
                 onChange={handleEmailChange}
               />

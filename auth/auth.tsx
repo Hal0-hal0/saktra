@@ -66,7 +66,7 @@ export function Auth() {
               <Input
                 id="email"
                 type="email"
-                placeholder="m@example.com"
+                placeholder="youremail@gmail.com"
                 onChange={(e:ChangeEvent<HTMLInputElement>) =>
                   setEmail(e.target.value)
                 }
