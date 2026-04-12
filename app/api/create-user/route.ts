@@ -1,12 +1,7 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { supabaseAdmin } from '@/lib/supabase/supabase-admin'
 
 export async function POST(request: Request) {
-  const { email, password, role} = await request.json()
+  const { email, password, role, position, department} = await request.json()
 
   const { data, error } = await supabaseAdmin.auth.admin.createUser({
     email,
@@ -16,14 +11,13 @@ export async function POST(request: Request) {
 
   if (error || !data.user) return Response.json({ error: error?.message ?? 'User creation failed' }, { status: 400 })
 
-  const { error: roleError } = await supabaseAdmin
+  const {error: insertPosAndDept} = await supabaseAdmin
   .from('profiles')
-  .update({ role: role })
-  .eq('user_id', data.user.id)
+  .update({department:department, position:position, role:role}) 
+  .eq('user_id' , data.user.id)
+  
 
-  console.log('roleError:', roleError)
-
-if (roleError) return Response.json({ error: roleError.message }, { status: 400 })
+if (insertPosAndDept) return Response.json({ error: insertPosAndDept.message }, { status: 400 })
     return Response.json({ data })
 }
 

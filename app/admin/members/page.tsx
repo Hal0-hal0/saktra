@@ -20,7 +20,7 @@ export default function CreateUserPage() {
   const getUser = async () => {
     const {data, error} = await supabase 
     .from('profiles')
-    .select('role,email,status,user_name,user_id')
+    .select('role,email,status,user_name,user_id,department,position')
     setUser(data ?? []);
     setloading(false)
   }
@@ -86,41 +86,41 @@ export default function CreateUserPage() {
         <div className='flex flex-col gap-5 mt-5  xl:flex-row lg:flex-row'>
           <Card size='default' className=' w-full max-w-sm'>
             <CardHeader>
-              <CardTitle>Admin</CardTitle>
+              <CardTitle className='font-bold'>Admin</CardTitle>
               <CardDescription>Total admins in the organization</CardDescription>
             </CardHeader>
             <CardContent>
-              <h1 className='text-5xl'>{adminCount}</h1>
+              <h1 className='text-5xl font-semibold'>{adminCount}</h1>
             </CardContent>
           </Card>
 
           <Card size='default' className=' w-full max-w-sm'>
             <CardHeader>
-              <CardTitle>Members</CardTitle>
+              <CardTitle className='font-bold'>Members</CardTitle>
               <CardDescription>Total users in the organization except admins.</CardDescription>
             </CardHeader>
             <CardContent>
-              <h1 className='text-5xl'>{userCount}</h1>
+              <h1 className='text-5xl font-semibold'>{userCount}</h1>
             </CardContent>
           </Card>
 
           <Card size='default' className=' w-full max-w-sm'>
             <CardHeader>
-              <CardTitle>Active Status</CardTitle>
+              <CardTitle className='font-bold'>Active Status</CardTitle>
               <CardDescription>Total active users in the organization</CardDescription>
             </CardHeader>
             <CardContent>
-              <h1 className='text-5xl'>{activeCount}</h1>
+              <h1 className='text-5xl font-semibold'>{activeCount}</h1>
             </CardContent>
           </Card>
 
           <Card size='default' className=' w-full max-w-sm'>
             <CardHeader>
-              <CardTitle>Inactive Status</CardTitle>
+              <CardTitle className='font-bold'>Inactive Status</CardTitle>
               <CardDescription>Total inactive users in the organization</CardDescription>
             </CardHeader>
             <CardContent>
-              <h1 className='text-5xl'>{inactiveCount}</h1>
+              <h1 className='text-5xl font-semibold'>{inactiveCount}</h1>
             </CardContent>
           </Card>
         </div>

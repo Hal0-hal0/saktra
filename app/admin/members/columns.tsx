@@ -7,7 +7,7 @@ import { ArrowUpDown } from "lucide-react"
 import { DeleteRoundedIcon } from "@/components/icons/material-symbols-delete-rounded"
 import { PencilLineIcon } from "@/components/icons/lucide-pencil-line"
 import { toast } from 'sonner'
-
+import { ButtonUpdateUser } from "./btn-updateUsers"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -35,15 +35,18 @@ import {
 // You can use a Zod schema here if you want.
 export type Payment = {
   user_id: string
-  id: string
-  amount: number
-  status: "pending" | "processing" | "success" | "failed"
+  user_name: string
   email: string
+  role: string
+  status: string
 }
 
 export const columns: ColumnDef<Payment>[] = [
   {
     accessorKey: "role",
+    cell: ({ row }) => {
+    return <span className="capitalize">{row.getValue("role")}</span>
+    },
     header: ({ column }) => {
       return (
         <Button
@@ -73,10 +76,24 @@ export const columns: ColumnDef<Payment>[] = [
   {
     accessorKey: "user_name",
     header: "Username",
+  }, 
+    {
+    accessorKey: "department",
+    header: "Department",
+    cell: ({ row }) => {
+    return <span className="title">{row.getValue("position")}</span>
+  }
+  },
+    {
+    accessorKey:"position",
+    header: "Position",
   },
 
   {
     accessorKey: "status",
+    cell: ({ row }) => {
+    return <span className="capitalize">{row.getValue("status")}</span>
+    },
     header: ({ column }) => {
       return (
         <Button
@@ -121,9 +138,12 @@ export const columns: ColumnDef<Payment>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem>
-              <PencilLineIcon/>Update User
-            </DropdownMenuItem>
+            <ButtonUpdateUser user={user}>
+              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                <PencilLineIcon/>Update User
+              </DropdownMenuItem>
+            </ButtonUpdateUser>
+            
             <DropdownMenuSeparator />
 
               <AlertDialog open={open} onOpenChange={setOpen}>
@@ -133,6 +153,7 @@ export const columns: ColumnDef<Payment>[] = [
                 <AlertDialogContent size="sm">
                   <AlertDialogHeader>
                     <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+                      <DeleteRoundedIcon/>
                     </AlertDialogMedia>
                     <AlertDialogTitle>Do you want to delete this user?</AlertDialogTitle>
                     <AlertDialogDescription>
