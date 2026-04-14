@@ -45,6 +45,7 @@ export function ButtonUpdateUser({children, user}:{
         email: string
         role: string
         status: string
+        created_at: Date
     }
   }) {
   const [open, setOpen] = useState(false)

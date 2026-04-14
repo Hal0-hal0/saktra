@@ -20,7 +20,7 @@ export default function CreateUserPage() {
   const getUser = async () => {
     const {data, error} = await supabase 
     .from('profiles')
-    .select('role,email,status,user_name,user_id,department,position')
+    .select('role,email,status,user_name,user_id,department,position,created_at')
     setUser(data ?? []);
     setloading(false)
   }
