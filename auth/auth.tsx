@@ -3,6 +3,7 @@ import { useState, FormEvent, ChangeEvent } from "react";
 import { supabase } from "@/lib/supabase/supabase-client";
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Card,
   CardAction,
@@ -21,12 +22,15 @@ export function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [loading, setLoading] = useState (false)
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setLoading(true)
 
     if(!email || !password) {
       toast.error('Please enter you Email and Password!', {position: "top-center"})
+      setLoading(false)
       return;
     }
 
@@ -43,9 +47,11 @@ export function Auth() {
       } else {
         toast.error(signInError.message, {position: "top-center"})
       }
+      setLoading(false)
       return;
     }
     toast.success("Logged in succesfully!", {position:"top-center"})
+    setLoading(false)
   }
 
   return (
@@ -94,6 +100,7 @@ export function Auth() {
             </div>
               <CardFooter className="flex-col gap-2">
                 <Button type="submit" className="w-full" >
+                  {loading && <><Spinner/></>}
                   Login
                 </Button>
             </CardFooter>

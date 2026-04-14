@@ -150,6 +150,14 @@ const data = {
         />
       ),
     },
+        {
+      name: "Membership",
+      url: "#",
+      icon: (
+        <FileChartColumnIcon
+        />
+      ),
+    },
     {
       name: "Organizations",
       url: "/admin/organizations",
