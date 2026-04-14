@@ -4,7 +4,6 @@ import { supabase } from "@/lib/supabase/supabase-client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-
 export default function Home() {
    const [session, setSession] = useState<any>(undefined);
    const router = useRouter();
