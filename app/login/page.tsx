@@ -33,8 +33,10 @@ export default function Home() {
         if (profile?.status === 'active') {
           if(profile?.role === 'admin') {
             router.push('/admin'); // redirect to /admin if user is admin
-          } else {
+          } else if(profile?.role === 'user') {
             router.push('/users'); // redirect to /users if user is not admin
+          } else {
+            router.push('/exec'); // redirect to /exec if user is not admin or user
           }
         } else {
           router.push('/inactive')
