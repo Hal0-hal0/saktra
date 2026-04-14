@@ -6,7 +6,6 @@ import { NavOperations } from "@/components/comp-admin/nav-operations"
 import { NavMain } from "@/components/comp-admin/nav-main"
 import { NavSecondary } from "@/components/comp-admin/nav-secondary"
 import { NavUser } from "@/components/comp-admin/nav-user"
-import  Image  from "next/image"
 import {
   Sidebar,
   SidebarContent,
@@ -27,23 +26,23 @@ const data = {
   navMain: [
     {
       title: "Dashboard",
-      url: "/admin",
+      url: "/exec",
       icon: (
         <LayoutDashboardIcon
         />
       ),
     },
     {
-      title: "Members",
-      url: "/admin/members",
+      title: "My Performance",
+      url: "/exec/performance",
       icon: (
         <ListIcon
         />
       ),
     },
     {
-      title: "Department",
-      url: "/admin/department",
+      title: "Members",
+      url: "/exec/members",
       icon: (
         <ChartBarIcon
         />
@@ -51,7 +50,7 @@ const data = {
     },
     {
       title: "Events",
-      url: "/admin/eventsPage",
+      url: "/exec/eventsPage",
       icon: (
         <FolderIcon
         />
@@ -136,7 +135,7 @@ const data = {
   operations: [
     {
       name: "Evaluations",
-      url: "/admin/evaluation",
+      url: "/exec/evaluation",
       icon: (
         <DatabaseIcon
         />
@@ -144,25 +143,9 @@ const data = {
     },
     {
       name: "Attendance",
-      url: "/admin/attendance",
+      url: "/exec/attendance",
       icon: (
         <FileChartColumnIcon
-        />
-      ),
-    },
-    {
-      name: "Organizations",
-      url: "/admin/organizations",
-      icon: (
-        <FileIcon
-        />
-      ),
-    },
-    {
-       name: "Reports",
-      url: "/admin/reportsPage",
-      icon: (
-        <FileIcon
         />
       ),
     },
@@ -179,15 +162,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:p-1.5! "
             >
-              <Link href="/admin" className="group flex items-center">
-
-                {/* Default Logo */}
-                <Image
-                  src="/images/saktra-hor-logo-pur.png"
-                  alt="SAKTRA Logo"
-                  width={120}
-                  height={40}
-                />
+              <Link href="/exec">
+                <CommandIcon className="size-5!" />
+                <span className="text-base font-semibold">SackTra</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

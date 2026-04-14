@@ -28,6 +28,21 @@ export async function updateSession(request: NextRequest) {
 
   const { data } = await supabase.auth.getClaims()
   const user = data?.claims 
+
+  // block active users from accessing /inactive directly
+  if (user && request.nextUrl.pathname.startsWith('/inactive')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('status,role')
+      .eq('user_id', user.sub)
+      .single()
+
+    if (profile?.status === 'active') {
+      const url = request.nextUrl.clone()
+      url.pathname = profile?.role === 'admin' ? '/admin' : '/users'
+      return NextResponse.redirect(url)
+    }
+  }
    
   // block admin from accessing /user
   if (user && request.nextUrl.pathname.startsWith('/users')) {
@@ -44,7 +59,7 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-//block inactive user/admin
+//block inactive user
   if (user && request.nextUrl.pathname.startsWith('/users') || user && request.nextUrl.pathname.startsWith('/admin')) {
     const { data: profile } = await supabase
       .from('profiles')

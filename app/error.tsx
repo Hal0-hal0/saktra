@@ -1,4 +1,4 @@
-'use client' // ⚠️ required for error pages
+'use client' 
 
 export default function Error({ error, reset }: { 
   error: Error

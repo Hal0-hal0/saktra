@@ -1,9 +1,13 @@
 "use client"
 
+import { useState } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal } from "lucide-react"
 import { ArrowUpDown } from "lucide-react"
-
+import { DeleteRoundedIcon } from "@/components/icons/material-symbols-delete-rounded"
+import { PencilLineIcon } from "@/components/icons/lucide-pencil-line"
+import { toast } from 'sonner'
+import { ButtonUpdateUser } from "./btn-updateUsers"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -14,18 +18,35 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
 // This type is used to define the shape of our data.
 // You can use a Zod schema here if you want.
 export type Payment = {
-  id: string
-  amount: number
-  status: "pending" | "processing" | "success" | "failed"
+  user_id: string
+  user_name: string
   email: string
+  role: string
+  status: string
 }
 
 export const columns: ColumnDef<Payment>[] = [
   {
     accessorKey: "role",
+    cell: ({ row }) => {
+    return <span className="capitalize">{row.getValue("role")}</span>
+    },
     header: ({ column }) => {
       return (
         <Button
@@ -55,10 +76,24 @@ export const columns: ColumnDef<Payment>[] = [
   {
     accessorKey: "user_name",
     header: "Username",
+  }, 
+    {
+    accessorKey: "department",
+    header: "Department",
+    cell: ({ row }) => {
+    return <span className="title">{row.getValue("position")}</span>
+  }
+  },
+    {
+    accessorKey:"position",
+    header: "Position",
   },
 
   {
     accessorKey: "status",
+    cell: ({ row }) => {
+    return <span className="capitalize">{row.getValue("status")}</span>
+    },
     header: ({ column }) => {
       return (
         <Button
@@ -75,7 +110,23 @@ export const columns: ColumnDef<Payment>[] = [
     id: "actions",
     accessorKey: "More Actions",
     cell: ({ row }) => {
-      const payment = row.original
+      const [open, setOpen] = useState(false)
+      const user = row.original
+
+      const handleDelete = async () => {
+          const res = await fetch('/api/delete-user', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.user_id })
+        })
+
+        const { error } = await res.json()
+        if (error) {
+          toast.error(error)
+          return
+        }
+        toast.success('User deleted!', {position:"top-center"})
+      }
  
       return (
         <DropdownMenu>
@@ -87,14 +138,35 @@ export const columns: ColumnDef<Payment>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(payment.id)}
-            >
-              Update User
-            </DropdownMenuItem>
+            <ButtonUpdateUser user={user}>
+              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                <PencilLineIcon/>Update User
+              </DropdownMenuItem>
+            </ButtonUpdateUser>
+            
             <DropdownMenuSeparator />
-            <DropdownMenuItem>View customer</DropdownMenuItem>
-            <DropdownMenuItem>View payment details</DropdownMenuItem>
+
+              <AlertDialog open={open} onOpenChange={setOpen}>
+                <AlertDialogTrigger asChild onClick={() => setOpen(true)}>
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}><DeleteRoundedIcon/><span className="text-destructive">Delete</span></DropdownMenuItem>
+                </AlertDialogTrigger>
+                <AlertDialogContent size="sm">
+                  <AlertDialogHeader>
+                    <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+                      <DeleteRoundedIcon/>
+                    </AlertDialogMedia>
+                    <AlertDialogTitle>Do you want to delete this user?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action is irreversible. Once user is being deleted all it's data will be wiped out in the database.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
+                    <AlertDialogAction variant="destructive" onClick={handleDelete}>Confirm</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
           </DropdownMenuContent>
         </DropdownMenu>
       )
