@@ -8,6 +8,7 @@ import { DeleteRoundedIcon } from "@/components/icons/material-symbols-delete-ro
 import { PencilLineIcon } from "@/components/icons/lucide-pencil-line"
 import { toast } from 'sonner'
 import { ButtonUpdateUser } from "./btn-updateUsers"
+import UpdateDrawer from "./update-drawer"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -30,15 +31,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-
-// This type is used to define the shape of our data.
-// You can use a Zod schema here if you want.
+import { Timestamp } from "next/dist/server/lib/cache-handlers/types"
 export type Payment = {
   user_id: string
   user_name: string
   email: string
   role: string
   status: string
+  department: string
+  position:string
+  created_at: Date
 }
 
 export const columns: ColumnDef<Payment>[] = [
@@ -106,9 +108,26 @@ export const columns: ColumnDef<Payment>[] = [
       )
     },
   },
+    {
+    accessorKey: "created_at",
+    cell: ({ row }) => {
+    return <span className="capitalize">{row.getValue("created_at")}</span>
+    },
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Created At
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
+  },
   {
     id: "actions",
-    accessorKey: "More Actions",
+    accessorKey: "Actions",
     cell: ({ row }) => {
       const [open, setOpen] = useState(false)
       const user = row.original
@@ -138,11 +157,11 @@ export const columns: ColumnDef<Payment>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <ButtonUpdateUser user={user}>
+            <UpdateDrawer user={user}>
               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                 <PencilLineIcon/>Update User
               </DropdownMenuItem>
-            </ButtonUpdateUser>
+            </UpdateDrawer>
             
             <DropdownMenuSeparator />
 
@@ -166,7 +185,6 @@ export const columns: ColumnDef<Payment>[] = [
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-
           </DropdownMenuContent>
         </DropdownMenu>
       )
