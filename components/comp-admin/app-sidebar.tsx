@@ -50,7 +50,7 @@ const data = {
       ),
     },
     {
-      title: "Events",
+      title: "Create Events",
       url: "/admin/eventsPage",
       icon: (
         <FolderIcon
@@ -155,14 +155,6 @@ const data = {
       url: "#",
       icon: (
         <FileChartColumnIcon
-        />
-      ),
-    },
-    {
-      name: "Organizations",
-      url: "/admin/organizations",
-      icon: (
-        <FileIcon
         />
       ),
     },

@@ -10,6 +10,8 @@ import { toast } from 'sonner'
 import { ButtonUpdateUser } from "./btn-updateUsers"
 import UpdateDrawer from "./update-drawer"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { useProfiles } from "./profile-provider"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -94,8 +96,13 @@ export const columns: ColumnDef<Payment>[] = [
   {
     accessorKey: "status",
     cell: ({ row }) => {
-    return <span className="capitalize">{row.getValue("status")}</span>
-    },
+    const status = row.getValue("status")
+    return status === "active" ? (
+    <Badge className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300">Active</Badge>
+      ) : (
+        <Badge className="bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300">Inactive</Badge>
+      )
+    },  
     header: ({ column }) => {
       return (
         <Button
@@ -158,7 +165,7 @@ export const columns: ColumnDef<Payment>[] = [
                     <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
                       <DeleteRoundedIcon/>
                     </AlertDialogMedia>
-                    <AlertDialogTitle>Do you want to delete this user?</AlertDialogTitle>
+                    <AlertDialogTitle>Do you want to delete this user: <span className="font-bold">{user.email}</span> ?</AlertDialogTitle>
                     <AlertDialogDescription>
                       This action is irreversible. Once user is being deleted all it's data will be wiped out in the database.
                     </AlertDialogDescription>

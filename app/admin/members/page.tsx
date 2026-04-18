@@ -74,7 +74,7 @@ export default function CreateUserPage() {
             </CardHeader>
             <CardFooter className='flex flex-col items-start'>
                <CardTitle className='font-bold'>Inactive Status</CardTitle>
-              <CardDescription>Total inactive users in the organization throughout departments</CardDescription>
+              <CardDescription>Total inactive users in all departments</CardDescription>
             </CardFooter>
           </Card>
 
