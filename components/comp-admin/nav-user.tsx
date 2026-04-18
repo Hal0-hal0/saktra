@@ -60,7 +60,21 @@ export function NavUser({
 
   useEffect (() => {
     getUser()
-  },[])
+
+    const channel = supabase
+    .channel('profile')
+    .on('postgres_changes',
+      {event:'*', schema:'public', table:'profiles'},
+      () => {
+        getUser() //refetch when chnages
+      }
+    )
+    .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
   return (
     <SidebarMenu>

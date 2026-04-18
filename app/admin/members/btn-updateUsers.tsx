@@ -50,7 +50,6 @@ export function ButtonUpdateUser({children, user}:{
   }) {
   const [open, setOpen] = useState(false)
   const [openConfirmation, setOpenConfirmation] = useState(false)
-
   const [userName, setUserName] = useState(user.user_name)
   const [role, setRole] = useState(user.role)
   const [email, setEmail] = useState(user.email)
