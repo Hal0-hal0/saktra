@@ -26,6 +26,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import { toast } from "sonner"
 import React, { use, useEffect, useState } from "react"
 type DrawerSide = "top" | "right" | "bottom" | "left"
 
@@ -34,6 +35,7 @@ type DrawerSide = "top" | "right" | "bottom" | "left"
 const UpdateDrawer = ({
   children,
   user,
+  onOpen,
   side = "right",
 }: {
   children: React.ReactNode
@@ -46,10 +48,12 @@ const UpdateDrawer = ({
     department: string
     position:string
   }
-  side?: DrawerSide
+    onOpen?: () => void
+    side?: DrawerSide
     }) => {
 
     const [loading, setLoading] = useState (false)
+    const [open, setOpen] = useState (false)
     const [userName, setUserName] = useState(
         !user.user_name || user.user_name === "null" ? "Member" : user.user_name
     )
@@ -73,7 +77,30 @@ const UpdateDrawer = ({
         }
     }
 
-      const departmentPositions: Record<string, string[]> = {
+    const handleUpdate = async () => {
+      setLoading(true)
+
+      const res = await fetch('/api/update-user', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, role:role, position:position,department:department, user_id:user.user_id, user_name:userName, status })
+      })
+      const { data, error } = await res.json()
+
+      if (error) {
+        toast.error(error, {position:'top-center'})
+        return
+      }
+
+      toast.success('User Updated Successfully!', {position:'top-center'})
+      setEmail('')
+      setLoading(false)
+      setOpen(false)
+      setDepartment ('')
+      setPosition ('')
+    }
+
+    const departmentPositions: Record<string, string[]> = {
     'public relations': [
       'Marketing Officer',
       'Partnership and Sponsorship Officer',
@@ -106,8 +133,10 @@ const UpdateDrawer = ({
 
   return (
     
-    <Drawer direction="left">
-      <DrawerTrigger asChild>{children}</DrawerTrigger>
+    <Drawer direction="left" open={open} onOpenChange={setOpen}>
+      <DrawerTrigger asChild onClick={() => setOpen(true)}>
+        {children}
+      </DrawerTrigger>
       <DrawerContent>
         <DrawerHeader>
           <DrawerTitle>Update User</DrawerTitle>
@@ -139,11 +168,25 @@ const UpdateDrawer = ({
                                 <SelectContent>
                                     <SelectItem value="user">User</SelectItem>
                                     <SelectItem value="admin">Admin</SelectItem>
+                                    <SelectItem value="executive">Executive</SelectItem>
+                                </SelectContent>
+                            </Select>
+                    </Field>
+
+                      <Field>
+                        <FieldLabel >Update Status</FieldLabel>
+                            <Select  value={status} onValueChange={setStatus}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="inactive">Inactive</SelectItem>
+                                    <SelectItem value="active">Active</SelectItem>
                                 </SelectContent>
                             </Select>
                     </Field>
                     <Field>
-                        <FieldLabel >Update Position</FieldLabel>
+                        <FieldLabel >Update Department</FieldLabel>
                             <Select value={department} onValueChange={setDepartment}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a Position" />
@@ -157,7 +200,7 @@ const UpdateDrawer = ({
                             </Select>
                     </Field>
                     <Field>
-                        <FieldLabel >Update Department</FieldLabel>
+                        <FieldLabel >Update Position</FieldLabel>
                             <Select value={position} onValueChange={setPosition}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a Department" />
@@ -176,10 +219,10 @@ const UpdateDrawer = ({
         </div>
 
         <DrawerFooter>
-          <Button onSubmit={onSubmit}>
+          <Button onClick={handleUpdate}>
             {loading && <><Spinner/></>}
-            Submit
-        </Button>
+            Update
+          </Button>
           <DrawerClose asChild>
             <Button variant="outline">Cancel</Button>
           </DrawerClose>

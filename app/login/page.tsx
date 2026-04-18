@@ -3,6 +3,7 @@ import { Auth } from "@/auth/auth";
 import { supabase } from "@/lib/supabase/supabase-client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ModeToggle } from "@/components/mode-toggle";
 
 export default function Home() {
    const [session, setSession] = useState<any>(undefined);
@@ -53,6 +54,9 @@ export default function Home() {
   return (
     <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
         {session ? null : <Auth />}
+        <div className="absolute bottom-0 left-10 size-16 ">
+          <ModeToggle/>
+        </div>
     </div>
   );
 }

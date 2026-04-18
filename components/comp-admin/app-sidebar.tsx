@@ -34,7 +34,7 @@ const data = {
       ),
     },
     {
-      title: "Members",
+      title: "Manage Members",
       url: "/admin/members",
       icon: (
         <ListIcon
