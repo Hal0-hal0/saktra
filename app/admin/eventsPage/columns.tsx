@@ -7,10 +7,11 @@ import { ArrowUpDown } from "lucide-react"
 import { DeleteRoundedIcon } from "@/components/icons/material-symbols-delete-rounded"
 import { PencilLineIcon } from "@/components/icons/lucide-pencil-line"
 import { toast } from 'sonner'
+import { ButtonCreateEvent } from "./btn-createEvent"
 import UpdateDrawer from "./update-drawer"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { useProfiles } from "./profile-provider"
+import { useEvent } from "./event-provider"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import EventDrawer from "./event-drawer"
 
 import {
   AlertDialog,
@@ -32,23 +34,25 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Timestamp } from "next/dist/server/lib/cache-handlers/types"
-export type Payment = {
-  user_id: string
-  user_name: string
-  email: string
-  role: string
-  status: string
-  department: string
-  position:string
-  created_at: Date
+import { Spinner } from "@/components/ui/spinner"
+export type Event = {
+  id:string
+  participants_id:string
+  date_start:string
+  date_end:string
+  time_start: string
+  time_end:string
+  name:string
+  description:string
+  location:string
+  venue:string
 }
 
-export const columns: ColumnDef<Payment>[] = [
+export const columns: ColumnDef<Event>[] = [
   {
-    accessorKey: "role",
+    accessorKey: "name",
     cell: ({ row }) => {
-    return <span className="capitalize">{row.getValue("role")}</span>
+    return <span className="capitalize">{row.getValue("name")}</span>
     },
     header: ({ column }) => {
       return (
@@ -56,76 +60,72 @@ export const columns: ColumnDef<Payment>[] = [
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Role
+          Event Name
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       )
     },
   },
   {
-    accessorKey: "email",
+    accessorKey: "description",
+    cell: ({ row }) => {
+      const description = (row.getValue("description") as string) ?? ''
+     return  <span>{description?.length > 50 ? description.slice(0, 50) + '...' : description}</span>
+    },
     header: ({ column }) => {
       return (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Email
+          Description
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       )
     },
   },
   {
-    accessorKey: "user_name",
-    header: "Username",
+    accessorKey: "date_start",
+    header: "Event Start",
   }, 
-    {
-    accessorKey: "department",
-    header: "Department",
+  {
+    accessorKey: "date_end",
+    header: "Event End",
     cell: ({ row }) => {
-    return <span className="capitalize">{row.getValue("department")}</span>
+    return <span className="capitalize">{row.getValue("date_end")}</span>
   }
   },
-    {
-    accessorKey:"position",
-    header: "Position",
+      {
+    accessorKey: "time_start",
+    header: "Time Start",
   },
-
-  {
-    accessorKey: "status",
-    cell: ({ row }) => {
-    const status = row.getValue("status")
-    return status === "active" ? (
-    <Badge className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300">Active</Badge>
-      ) : (
-        <Badge className="bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300">Inactive</Badge>
-      )
-    },  
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Status
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
+      {
+    accessorKey: "time_end",
+    header: "Time End",
+  },
+    {
+    accessorKey: "location",
+    header: "Location",
+  },
+    {
+    accessorKey: "venue",
+    header: "Venue",
   },
   {
     id: "actions",
     accessorKey: "Actions",
     cell: ({ row }) => {
       const [open, setOpen] = useState(false)
-      const user = row.original
+      const [loading, setloading] = useState (false)
+      const event = row.original
+      
 
       const handleDelete = async () => {
-          const res = await fetch('/api/delete-user', {
+        setloading(true)
+        const res = await fetch('/api/delete-event', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.user_id })
+          body: JSON.stringify({ id: event.id })
         })
 
         const { error } = await res.json()
@@ -133,7 +133,8 @@ export const columns: ColumnDef<Payment>[] = [
           toast.error(error)
           return
         }
-        toast.success('Event deleted!', {position:"top-center"})
+        setloading(false)
+        toast.success('User deleted!', {position:"top-center"})
       }
       
  
@@ -147,31 +148,34 @@ export const columns: ColumnDef<Payment>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" >
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <UpdateDrawer user={user}>
+            <EventDrawer eventId={row.original.id}>
               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                <PencilLineIcon/>Update User
+                <DeleteRoundedIcon/>
+                <span className="text-accent-foreground">View More</span>
               </DropdownMenuItem>
-            </UpdateDrawer>
-            
+            </EventDrawer>
+
             <DropdownMenuSeparator />
 
-              <AlertDialog open={open} onOpenChange={setOpen}>
-                <AlertDialogTrigger asChild onClick={() => setOpen(true)}>
+              <AlertDialog >
+                <AlertDialogTrigger asChild >
                   <DropdownMenuItem onSelect={(e) => e.preventDefault()}><DeleteRoundedIcon/><span className="text-destructive">Delete</span></DropdownMenuItem>
                 </AlertDialogTrigger>
                 <AlertDialogContent size="sm">
-                  <AlertDialogHeader>
+                  <AlertDialogHeader >
                     <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
                       <DeleteRoundedIcon/>
                     </AlertDialogMedia>
-                    <AlertDialogTitle>Do you want to delete this user: <span className="font-bold">{user.email}</span> ?</AlertDialogTitle>
+                    <AlertDialogTitle>Do you want to delete this user: ?</AlertDialogTitle>
                     <AlertDialogDescription>
                       This action is irreversible. Once user is being deleted all it's data will be wiped out in the database.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
-                    <AlertDialogAction variant="destructive" onClick={handleDelete}>Confirm</AlertDialogAction>
+                    <AlertDialogAction variant="destructive" onClick={handleDelete}>
+                      {loading && <Spinner/> }
+                      Confirm</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
