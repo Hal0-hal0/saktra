@@ -1,0 +1,255 @@
+'use client'
+import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Field, FieldGroup } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { useState, useEffect } from "react"
+import { toast } from 'sonner'
+import { format } from "date-fns"
+import { ChevronDownIcon } from "lucide-react"
+import { Calendar } from "@/components/ui/calendar"
+import { FieldLabel } from "@/components/ui/field"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+
+
+export function ButtonCreateEvent() {
+  const [openModal, setOpenModal] = useState(false)
+  const [dateStart, setDateStart] = useState<Date | undefined>(new Date())
+  const [dateEnd, setDateEnd] = useState<Date | undefined>(new Date())
+  const [timeStart, setTimeStart] = useState('10:30:00')
+  const [timeEnd, setTimeEnd] = useState('10:30:00')
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [location, setLocation] = useState('')
+  const [venue, setVenue] = useState('')
+  const [submit, setSubmit] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [openEnd, setOpenEnd] = useState(false)
+  const [canSubmit, setCanSubmit] = useState(true)
+
+  useEffect(() => {
+    if (!dateStart || !dateEnd) {
+      setCanSubmit(false)
+      return
+    }
+
+    const start = new Date(dateStart)
+    const end = new Date(dateEnd)
+
+    const [startH, startM, startS] = timeStart.split(':').map(Number)
+    const [endH, endM, endS] = timeEnd.split(':').map(Number)
+
+    start.setHours(startH, startM, startS)
+    end.setHours(endH, endM, endS)
+
+    setCanSubmit(end >= start)
+  }, [dateStart, dateEnd, timeStart, timeEnd])
+
+  const handleCreateEvent = async () => {
+    setSubmit(true)
+
+    if (!canSubmit) {
+      toast.error('End date/time must be after start date/time', { position: 'top-center' })
+      setSubmit(false)
+      return
+    }
+
+    if (!dateStart || !dateEnd || !timeStart || !timeEnd || !location || !name || !venue) {
+      toast.error('Please Fill In All Fields', { position: 'top-center' })
+      setSubmit(false)
+      return
+    }
+
+    const res = await fetch('/api/create-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        date_start: format(dateStart, 'yyyy-MM-dd'),
+        date_end: format(dateEnd, 'yyyy-MM-dd'),
+        name,
+        description,
+        location,
+        venue,
+        time_start: timeStart,
+        time_end: timeEnd
+      })
+    })
+    const { data, error } = await res.json()
+
+    if (error) {
+      toast.error(error, { position: 'top-center' })
+      setSubmit(false)
+      return
+    }
+
+    toast.success('Event Created Successfully!', { position: 'top-center' })
+    setOpenModal(false)
+    setSubmit(false)
+    setDateStart(new Date())
+    setDateEnd(new Date())
+    setDescription('')
+    setLocation('')
+    setName('')
+  }
+
+  return (
+    <Dialog open={openModal} onOpenChange={setOpenModal}>
+      <DialogTrigger asChild>
+        <Button variant="default">Create Event</Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Create Event</DialogTitle>
+          <DialogDescription>
+            Upon submission, members can now join the event.
+          </DialogDescription>
+        </DialogHeader>
+        <FieldGroup>
+          <Field>
+            <Label htmlFor="name-1">Name</Label>
+            <Input
+              id="name-1"
+              name="name"
+              placeholder="Outreach"
+              type="text"
+              onChange={(e) => setName(e.target.value)}
+            />
+          </Field>
+          <Field>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              placeholder="Optional"
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel>Location</FieldLabel>
+            <Input
+              placeholder="Iloilo city"
+              onChange={(e) => setLocation(e.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel>Venue</FieldLabel>
+            <Input
+              placeholder="Hotel 321"
+              onChange={(e) => setVenue(e.target.value)}
+            />
+          </Field>
+          <div className="flex flex-row gap-5">
+            <Field>
+              <Label>Date</Label>
+              <FieldGroup className="mx-auto max-w-xs flex-row">
+                <Field>
+                  <FieldLabel htmlFor="date-start">Date Start</FieldLabel>
+                  <Popover open={open} onOpenChange={setOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        id="date-start"
+                        className="w-32 justify-between font-normal"
+                      >
+                        {dateStart ? format(dateStart, "PPP") : "Select date"}
+                        <ChevronDownIcon />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateStart}
+                        captionLayout="dropdown"
+                        defaultMonth={dateStart}
+                        onSelect={(date) => {
+                          setDateStart(date)
+                          setDateEnd(date)
+                          setOpen(false)
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FieldLabel htmlFor="date-end">Date End</FieldLabel>
+                  <Popover open={openEnd} onOpenChange={setOpenEnd}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        id="date-end"
+                        className="w-32 justify-between font-normal"
+                      >
+                        {dateEnd ? format(dateEnd, "PPP") : "Select date"}
+                        <ChevronDownIcon />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateEnd}
+                        captionLayout="dropdown"
+                        defaultMonth={dateEnd}
+                        onSelect={(date) => {
+                          setDateEnd(date)
+                          setOpenEnd(false)
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </Field>
+              </FieldGroup>
+            </Field>
+            <Field>
+              <Label>Time</Label>
+              <FieldGroup className="mx-auto max-w-xs flex-row">
+                <Field className="w-32">
+                  <FieldLabel htmlFor="time-start">Time Start</FieldLabel>
+                  <Input
+                    type="time"
+                    id="time-start"
+                    step="1"
+                    defaultValue="10:30:00"
+                    className="appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                    onChange={(e) => setTimeStart(e.target.value)}
+                  />
+                </Field>
+                <Field className="w-32">
+                  <FieldLabel htmlFor="time-end">Time End</FieldLabel>
+                  <Input
+                    type="time"
+                    id="time-end"
+                    step="1"
+                    defaultValue="10:30:00"
+                    className="appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                    onChange={(e) => setTimeEnd(e.target.value)}
+                  />
+                </Field>
+              </FieldGroup>
+            </Field>
+          </div>
+        </FieldGroup>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cancel</Button>
+          </DialogClose>
+          <Button onClick={handleCreateEvent}>
+            {submit && <Spinner data-icon="inline-start" />}
+            Add Event
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

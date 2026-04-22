@@ -166,7 +166,7 @@ export function ButtonInviteUser() {
             </Field>
             <Field>
                 <Label>Position</Label>
-                <Select onValueChange={setSelectedPosition}>
+                <Select onValueChange={setSelectedPosition} disabled={!department || selectedRole === 'executive'}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a Position" />
                   </SelectTrigger>

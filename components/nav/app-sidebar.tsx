@@ -84,7 +84,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     getRole()
   }, [])
 
-  if (roleLoading) return <h1>Loading...</h1>
+  if (roleLoading) return null
 
   const navItems = role === 'executive' ? execNav : role === 'user' ? userNav : adminNav
   const operationItems = role === 'executive' ? execOperations : role === 'user' ? userOperations : adminOperations
