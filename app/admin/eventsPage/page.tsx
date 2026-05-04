@@ -1,10 +1,15 @@
 'use client'
-import { columns, Event } from "./columns"
+import { useMemo } from "react"
+import { columns } from "./columns"
 import { DataTable } from "./data-table"
 import { useEvent } from './event-provider'
 
 export default function CreateUserPage() {
   const {events} = useEvent()
+  const ongoingEvents = useMemo(
+    () => events.filter((event: { status?: string }) => event.status !== 'done'),
+    [events]
+  )
 
   return (
     <div>
@@ -13,7 +18,7 @@ export default function CreateUserPage() {
 
       </div>
       <div className="container mx-auto py-5">
-        <DataTable columns={columns} data={events} />
+        <DataTable columns={columns} data={ongoingEvents} />
       </div>
     </div>
   )

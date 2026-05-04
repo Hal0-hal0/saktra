@@ -2,16 +2,10 @@
 
 import { useState } from "react"
 import { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal } from "lucide-react"
-import { ArrowUpDown } from "lucide-react"
+import { ArrowUpDown, CheckCheckIcon, MoreHorizontal } from "lucide-react"
 import { DeleteRoundedIcon } from "@/components/icons/material-symbols-delete-rounded"
-import { PencilLineIcon } from "@/components/icons/lucide-pencil-line"
 import { toast } from 'sonner'
-import { ButtonCreateEvent } from "./btn-createEvent"
-import UpdateDrawer from "./update-drawer"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { useEvent } from "./event-provider"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +29,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Spinner } from "@/components/ui/spinner"
+import { OverviewKeyRoundedIcon } from "@/components/icons/material-symbols-overview-key-rounded"
 export type Event = {
   id:string
   participants_id:string
@@ -46,6 +41,126 @@ export type Event = {
   description:string
   location:string
   venue:string
+  status?: string
+}
+
+function EventActions({ event }: { event: Event }) {
+  const [loading, setloading] = useState(false)
+  const [doneLoading, setDoneLoading] = useState(false)
+
+  const handleDelete = async () => {
+    setloading(true)
+    const res = await fetch('/api/delete-event', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: event.id })
+    })
+
+    const { error } = await res.json()
+    if (error) {
+      toast.error(error)
+      setloading(false)
+      return
+    }
+
+    setloading(false)
+    toast.success('Event Deleted Successfully!', { position:"top-center" })
+  }
+
+  const handleMarkDone = async () => {
+    setDoneLoading(true)
+
+    const res = await fetch('/api/update-event-status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: event.id, status: 'done' })
+    })
+
+    const { error } = await res.json()
+    if (error) {
+      toast.error(error, { position: "top-center" })
+      setDoneLoading(false)
+      return
+    }
+
+    toast.success('Event marked as done.', { position: "top-center" })
+    setDoneLoading(false)
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <span className="sr-only">Open menu</span>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+        <EventDrawer eventId={event.id}>
+          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+            <OverviewKeyRoundedIcon/>
+            <span className="text-accent-foreground">View More</span>
+          </DropdownMenuItem>
+        </EventDrawer>
+
+        <DropdownMenuSeparator />
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <DropdownMenuItem onSelect={(e) => e.preventDefault()} disabled={doneLoading}>
+              {doneLoading ? <Spinner /> : <CheckCheckIcon className="size-4" />}
+              <span className="text-accent-foreground">Event Done</span>
+            </DropdownMenuItem>
+          </AlertDialogTrigger>
+          <AlertDialogContent size="sm">
+            <AlertDialogHeader>
+              <AlertDialogMedia className="bg-primary/10 text-primary">
+                <CheckCheckIcon className="size-5" />
+              </AlertDialogMedia>
+              <AlertDialogTitle>Mark this event as done?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will move the event to Event History and remove it from the ongoing events and attendance pages.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleMarkDone}>
+                {doneLoading && <Spinner />}
+                Confirm
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+              <DeleteRoundedIcon/>
+              <span className="text-destructive">Delete</span>
+            </DropdownMenuItem>
+          </AlertDialogTrigger>
+          <AlertDialogContent size="sm">
+            <AlertDialogHeader>
+              <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+                <DeleteRoundedIcon/>
+              </AlertDialogMedia>
+              <AlertDialogTitle>Do you want to delete this event?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action is irreversible. Once an event is deleted, all of its data will be removed from the database.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
+              <AlertDialogAction variant="destructive" onClick={handleDelete}>
+                {loading && <Spinner/> }
+                Confirm
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }
 
 export const columns: ColumnDef<Event>[] = [
@@ -114,74 +229,6 @@ export const columns: ColumnDef<Event>[] = [
   {
     id: "actions",
     accessorKey: "Actions",
-    cell: ({ row }) => {
-      const [open, setOpen] = useState(false)
-      const [loading, setloading] = useState (false)
-      const event = row.original
-      
-
-      const handleDelete = async () => {
-        setloading(true)
-        const res = await fetch('/api/delete-event', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: event.id })
-        })
-
-        const { error } = await res.json()
-        if (error) {
-          toast.error(error)
-          return
-        }
-        setloading(false)
-        toast.success('User deleted!', {position:"top-center"})
-      }
-      
- 
-      return (
-        <DropdownMenu >
-          <DropdownMenuTrigger asChild >
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" >
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <EventDrawer eventId={row.original.id}>
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                <DeleteRoundedIcon/>
-                <span className="text-accent-foreground">View More</span>
-              </DropdownMenuItem>
-            </EventDrawer>
-
-            <DropdownMenuSeparator />
-
-              <AlertDialog >
-                <AlertDialogTrigger asChild >
-                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}><DeleteRoundedIcon/><span className="text-destructive">Delete</span></DropdownMenuItem>
-                </AlertDialogTrigger>
-                <AlertDialogContent size="sm">
-                  <AlertDialogHeader >
-                    <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
-                      <DeleteRoundedIcon/>
-                    </AlertDialogMedia>
-                    <AlertDialogTitle>Do you want to delete this user: ?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action is irreversible. Once user is being deleted all it's data will be wiped out in the database.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
-                    <AlertDialogAction variant="destructive" onClick={handleDelete}>
-                      {loading && <Spinner/> }
-                      Confirm</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )
-    },
+    cell: ({ row }) => <EventActions event={row.original} />,
   },
 ]

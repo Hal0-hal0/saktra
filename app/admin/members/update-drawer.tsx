@@ -1,7 +1,6 @@
 'use client'
 import {
   Drawer,
-  DrawerClose,
   DrawerContent,
   DrawerDescription,
   DrawerFooter,
@@ -27,16 +26,15 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { toast } from "sonner"
-import React, { use, useEffect, useState } from "react"
-type DrawerSide = "top" | "right" | "bottom" | "left"
+import React, { useState } from "react"
+import { DiscardChangesAlert } from "@/components/ui/discard-changes-alert"
+import { useUnsavedChangesGuard } from "@/lib/use-unsaved-changes-guard"
 
 
 
 const UpdateDrawer = ({
   children,
   user,
-  onOpen,
-  side = "right",
 }: {
   children: React.ReactNode
   user: {
@@ -48,8 +46,6 @@ const UpdateDrawer = ({
     department: string
     position:string
   }
-    onOpen?: () => void
-    side?: DrawerSide
     }) => {
 
     const [loading, setLoading] = useState (false)
@@ -63,19 +59,45 @@ const UpdateDrawer = ({
     const [position, setPosition] = useState(user.position)
     const [department, setDepartment] = useState(user.department)
 
-    console.log("Test: ", role,email,status,userName)
-
-    const onSubmit = () =>{
-        setLoading(true)
+    const initialState = {
+      userName: !user.user_name || user.user_name === "null" ? "Member" : user.user_name,
+      role: user.role,
+      email: user.email,
+      status: user.status,
+      position: user.position,
+      department: user.department,
     }
 
-    const nullUserName = () => {
-        if (userName === "null") {
-            setUserName('Not Set')
-        } else {
-            setUserName(userName)
-        }
+    const resetForm = () => {
+      setUserName(initialState.userName)
+      setRole(initialState.role)
+      setEmail(initialState.email)
+      setStatus(initialState.status)
+      setPosition(initialState.position)
+      setDepartment(initialState.department)
+      setLoading(false)
+      setOpen(false)
     }
+
+    const isDirty =
+      userName !== initialState.userName ||
+      role !== initialState.role ||
+      email !== initialState.email ||
+      status !== initialState.status ||
+      position !== initialState.position ||
+      department !== initialState.department
+
+    const {
+      cancelDiscard,
+      confirmDiscard,
+      confirmOpen,
+      handleOpenChange,
+      requestClose,
+      setConfirmOpen,
+    } = useUnsavedChangesGuard({
+      isDirty,
+      onDiscard: resetForm,
+    })
 
     const handleUpdate = async () => {
       setLoading(true)
@@ -85,19 +107,16 @@ const UpdateDrawer = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, role:role, position:position,department:department, user_id:user.user_id, user_name:userName, status })
       })
-      const { data, error } = await res.json()
+      const { error } = await res.json()
 
       if (error) {
         toast.error(error, {position:'top-center'})
+        setLoading(false)
         return
       }
 
       toast.success('User Updated Successfully!', {position:'top-center'})
-      setEmail('')
-      setLoading(false)
-      setOpen(false)
-      setDepartment ('')
-      setPosition ('')
+      resetForm()
     }
 
     const departmentPositions: Record<string, string[]> = {
@@ -126,14 +145,10 @@ const UpdateDrawer = ({
       'Member',
     ],
     }
-
-    console.log("Username: ",userName)
-
-
-
   return (
     
-    <Drawer direction="left" open={open} onOpenChange={setOpen}>
+    <>
+    <Drawer direction="left" open={open} onOpenChange={(nextOpen) => handleOpenChange(nextOpen, setOpen)}>
       <DrawerTrigger asChild onClick={() => setOpen(true)}>
         {children}
       </DrawerTrigger>
@@ -219,16 +234,27 @@ const UpdateDrawer = ({
         </div>
 
         <DrawerFooter>
-          <Button onClick={handleUpdate}>
+          <Button type="button" onClick={handleUpdate}>
             {loading && <><Spinner/></>}
             Update
           </Button>
-          <DrawerClose asChild>
-            <Button variant="outline">Cancel</Button>
-          </DrawerClose>
+          <Button type="button" variant="outline" onClick={requestClose}>
+            Cancel
+          </Button>
         </DrawerFooter>
       </DrawerContent>
     </Drawer>
+    <DiscardChangesAlert
+      open={confirmOpen}
+      onOpenChange={(nextOpen) => {
+        setConfirmOpen(nextOpen)
+        if (!nextOpen) {
+          cancelDiscard()
+        }
+      }}
+      onConfirm={confirmDiscard}
+    />
+    </>
   )
 }
 
