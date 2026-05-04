@@ -1,7 +1,23 @@
 'use client'
+import React, { useState } from 'react'
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
-import { Textarea } from "@/components/ui/textarea"
+import { toast } from 'sonner'
+import { format, parse } from "date-fns"
+import { ChevronDownIcon } from "lucide-react"
+import { Calendar } from "@/components/ui/calendar"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import {
   Dialog,
   DialogContent,
@@ -11,60 +27,77 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Field, FieldGroup } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useState } from "react"
-import { toast } from 'sonner'
-import { format } from "date-fns"
-import { ChevronDownIcon } from "lucide-react"
-import { Calendar } from "@/components/ui/calendar"
-import { FieldLabel } from "@/components/ui/field"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
 import { DiscardChangesAlert } from "@/components/ui/discard-changes-alert"
 import { useUnsavedChangesGuard } from "@/lib/use-unsaved-changes-guard"
-import { EventProvider, useEvent } from "./event-provider"
 
-export function ButtonCreateEvent() {
-  const [openModal, setOpenModal] = useState(false)
-  const [dateStart, setDateStart] = useState<Date | undefined>(new Date())
-  const [dateEnd, setDateEnd] = useState<Date | undefined>(new Date())
-  const [timeStart, setTimeStart] = useState('10:30:00')
-  const [timeEnd, setTimeEnd] = useState('10:30:00')
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [location, setLocation] = useState('')
-  const [venue, setVenue] = useState('')
+type Event = {
+  id: string
+  name: string
+  description: string
+  location: string
+  venue: string
+  date_start: string
+  date_end: string
+  time_start: string
+  time_end: string
+}
+
+const UpdateEvent = ({ children, event }: {
+  children: React.ReactNode
+  event: Event
+}) => {
+  const [name, setName] = useState(event?.name ?? '')
+  const [description, setDescription] = useState(event?.description ?? '')
+  const [location, setLocation] = useState(event?.location ?? '')
+  const [venue, setVenue] = useState(event?.venue ?? '')
+  const [dateStart, setDateStart] = useState<Date | undefined>(
+    event?.date_start ? parse(event.date_start, 'yyyy-MM-dd', new Date()) : undefined
+  )
+  const [dateEnd, setDateEnd] = useState<Date | undefined>(
+    event?.date_end ? parse(event.date_end, 'yyyy-MM-dd', new Date()) : undefined
+  )
+  const [timeStart, setTimeStart] = useState(event?.time_start ?? '')
+  const [timeEnd, setTimeEnd] = useState(event?.time_end ?? '')
   const [submit, setSubmit] = useState(false)
   const [open, setOpen] = useState(false)
+  const [openStart, setOpenStart] = useState(false)
   const [openEnd, setOpenEnd] = useState(false)
 
+  const initialState = {
+    name: event?.name ?? '',
+    description: event?.description ?? '',
+    location: event?.location ?? '',
+    venue: event?.venue ?? '',
+    dateStart: event?.date_start ? parse(event.date_start, 'yyyy-MM-dd', new Date()) : undefined,
+    dateEnd: event?.date_end ? parse(event.date_end, 'yyyy-MM-dd', new Date()) : undefined,
+    timeStart: event?.time_start ?? '',
+    timeEnd: event?.time_end ?? '',
+  }
+
   const resetForm = () => {
-    setOpenModal(false)
-    setDateStart(new Date())
-    setDateEnd(new Date())
-    setTimeStart('10:30:00')
-    setTimeEnd('10:30:00')
-    setName('')
-    setDescription('')
-    setLocation('')
-    setVenue('')
+    setName(initialState.name)
+    setDescription(initialState.description)
+    setLocation(initialState.location)
+    setVenue(initialState.venue)
+    setDateStart(initialState.dateStart)
+    setDateEnd(initialState.dateEnd)
+    setTimeStart(initialState.timeStart)
+    setTimeEnd(initialState.timeEnd)
     setSubmit(false)
-    setOpen(false)
+    setOpenStart(false)
     setOpenEnd(false)
+    setOpen(false)
   }
 
   const isDirty =
-    name.trim().length > 0 ||
-    description.trim().length > 0 ||
-    location.trim().length > 0 ||
-    venue.trim().length > 0 ||
-    timeStart !== '10:30:00' ||
-    timeEnd !== '10:30:00'
+    name !== initialState.name ||
+    description !== initialState.description ||
+    location !== initialState.location ||
+    venue !== initialState.venue ||
+    dateStart?.getTime() !== initialState.dateStart?.getTime() ||
+    dateEnd?.getTime() !== initialState.dateEnd?.getTime() ||
+    timeStart !== initialState.timeStart ||
+    timeEnd !== initialState.timeEnd
 
   const {
     cancelDiscard,
@@ -95,7 +128,7 @@ export function ButtonCreateEvent() {
     return end >= start
   })()
 
-  const handleCreateEvent = async () => {
+  const handleUpdate = async () => {
     setSubmit(true)
 
     if (!canSubmit) {
@@ -104,27 +137,28 @@ export function ButtonCreateEvent() {
       return
     }
 
-    if (!dateStart || !dateEnd || !timeStart || !timeEnd || !location || !name || !venue) {
-      toast.error('Please Fill In All Fields', { position: 'top-center' })
+    if (!name || !location || !venue || !dateStart || !dateEnd || !timeStart || !timeEnd) {
+      toast.error('Please fill in all fields', { position: 'top-center' })
       setSubmit(false)
       return
     }
 
-    const res = await fetch('/api/create-event', {
-      method: 'POST',
+    const res = await fetch('/api/update-event', {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        date_start: format(dateStart, 'yyyy-MM-dd'),
-        date_end: format(dateEnd, 'yyyy-MM-dd'),
+        id: event.id,
         name,
         description,
         location,
         venue,
+        date_start: format(dateStart, 'yyyy-MM-dd'),
+        date_end: format(dateEnd, 'yyyy-MM-dd'),
         time_start: timeStart,
-        time_end: timeEnd
-        
+        time_end: timeEnd,
       })
     })
+
     const { error } = await res.json()
 
     if (error) {
@@ -133,68 +167,48 @@ export function ButtonCreateEvent() {
       return
     }
 
-    toast.success('Event Created Successfully!', { position: 'top-center' })
+    toast.success('Event updated successfully!', { position: 'top-center' })
     resetForm()
   }
 
   return (
     <>
-    <Dialog open={openModal} onOpenChange={(nextOpen) => handleOpenChange(nextOpen, setOpenModal)}>
+    <Dialog open={open} onOpenChange={(nextOpen) => handleOpenChange(nextOpen, setOpen)}>
       <DialogTrigger asChild>
-        <Button variant="default">Create Event</Button>
+        {children}
       </DialogTrigger>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Create Event</DialogTitle>
-          <DialogDescription>
-            Upon submission, members can now join the event.
-          </DialogDescription>
+          <DialogTitle className="capitalize">{event?.name}</DialogTitle>
+          <DialogDescription>Update event details.</DialogDescription>
         </DialogHeader>
+
         <FieldGroup>
           <Field>
-            <Label htmlFor="name-1">Name</Label>
-            <Input
-              id="name-1"
-              name="name"
-              placeholder="Outreach"
-              type="text"
-              onChange={(e) => setName(e.target.value)}
-            />
+            <FieldLabel>Event Name</FieldLabel>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
           </Field>
           <Field>
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              placeholder="Optional"
-              onChange={(e) => setDescription(e.target.value)}
-            />
+            <FieldLabel>Description</FieldLabel>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
           </Field>
           <Field>
             <FieldLabel>Location</FieldLabel>
-            <Input
-              placeholder="Iloilo city"
-              onChange={(e) => setLocation(e.target.value)}
-            />
+            <Input value={location} onChange={(e) => setLocation(e.target.value)} />
           </Field>
           <Field>
             <FieldLabel>Venue</FieldLabel>
-            <Input
-              placeholder="Hotel 321"
-              onChange={(e) => setVenue(e.target.value)}
-            />
+            <Input value={venue} onChange={(e) => setVenue(e.target.value)} />
           </Field>
           <div className="flex flex-row gap-5">
             <Field>
-              <Label>Date</Label>
+              <FieldLabel>Date</FieldLabel>
               <FieldGroup className="mx-auto max-w-xs flex-row">
                 <Field>
-                  <FieldLabel htmlFor="date-start">Date Start</FieldLabel>
-                  <Popover open={open} onOpenChange={setOpen}>
+                  <FieldLabel>Date Start</FieldLabel>
+                  <Popover open={openStart} onOpenChange={setOpenStart}>
                     <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        id="date-start"
-                        className="w-32 justify-between font-normal"
-                      >
+                      <Button variant="outline" className="w-32 justify-between font-normal">
                         {dateStart ? format(dateStart, "PPP") : "Select date"}
                         <ChevronDownIcon />
                       </Button>
@@ -208,19 +222,15 @@ export function ButtonCreateEvent() {
                         onSelect={(date) => {
                           setDateStart(date)
                           setDateEnd(date)
-                          setOpen(false)
+                          setOpenStart(false)
                         }}
                       />
                     </PopoverContent>
                   </Popover>
-                  <FieldLabel htmlFor="date-end">Date End</FieldLabel>
+                  <FieldLabel>Date End</FieldLabel>
                   <Popover open={openEnd} onOpenChange={setOpenEnd}>
                     <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        id="date-end"
-                        className="w-32 justify-between font-normal"
-                      >
+                      <Button variant="outline" className="w-32 justify-between font-normal">
                         {dateEnd ? format(dateEnd, "PPP") : "Select date"}
                         <ChevronDownIcon />
                       </Button>
@@ -242,26 +252,24 @@ export function ButtonCreateEvent() {
               </FieldGroup>
             </Field>
             <Field>
-              <Label>Time</Label>
+              <FieldLabel>Time</FieldLabel>
               <FieldGroup className="mx-auto max-w-xs flex-row">
                 <Field className="w-32">
-                  <FieldLabel htmlFor="time-start">Time Start</FieldLabel>
+                  <FieldLabel>Time Start</FieldLabel>
                   <Input
                     type="time"
-                    id="time-start"
                     step="1"
-                    defaultValue="10:30:00"
+                    value={timeStart}
                     className="appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
                     onChange={(e) => setTimeStart(e.target.value)}
                   />
                 </Field>
                 <Field className="w-32">
-                  <FieldLabel htmlFor="time-end">Time End</FieldLabel>
+                  <FieldLabel>Time End</FieldLabel>
                   <Input
                     type="time"
-                    id="time-end"
                     step="1"
-                    defaultValue="10:30:00"
+                    value={timeEnd}
                     className="appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
                     onChange={(e) => setTimeEnd(e.target.value)}
                   />
@@ -270,13 +278,14 @@ export function ButtonCreateEvent() {
             </Field>
           </div>
         </FieldGroup>
+
         <DialogFooter>
           <Button type="button" variant="outline" onClick={requestClose}>
             Cancel
           </Button>
-          <Button type="button" onClick={handleCreateEvent}>
+          <Button type="button" onClick={handleUpdate} disabled={submit}>
             {submit && <Spinner data-icon="inline-start" />}
-            Add Event
+            Save Changes
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -294,3 +303,5 @@ export function ButtonCreateEvent() {
     </>
   )
 }
+
+export default UpdateEvent

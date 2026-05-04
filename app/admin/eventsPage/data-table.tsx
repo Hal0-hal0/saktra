@@ -28,11 +28,17 @@ import { ButtonCreateEvent } from "./btn-createEvent"
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
+  showCreateButton?: boolean
+  filterColumnId?: string
+  filterPlaceholder?: string
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
+  showCreateButton = true,
+  filterColumnId = "name",
+  filterPlaceholder = "Filter events...",
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -62,12 +68,12 @@ export function DataTable<TData, TValue>({
   return (
     <div>
         <div className="flex items-center py-4 gap-5">
-            <ButtonCreateEvent/>
+            {showCreateButton ? <ButtonCreateEvent/> : null}
             <Input
-            placeholder="Filter events..."
-            value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+            placeholder={filterPlaceholder}
+            value={(table.getColumn(filterColumnId)?.getFilterValue() as string) ?? ""}
             onChange={(event) =>
-                table.getColumn("name")?.setFilterValue(event.target.value)
+                table.getColumn(filterColumnId)?.setFilterValue(event.target.value)
             }
             className="max-w-sm"
             />

@@ -20,12 +20,16 @@ import {
 } from "@/components/ui/sidebar"
 import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, UsersIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, DatabaseIcon, FileChartColumnIcon, FileIcon, CommandIcon } from "lucide-react"
 import { Skeleton } from "../ui/skeleton"
+import {HistoryRoundedIcon} from "@/components/icons/material-symbols-history-rounded"
+import {CheckbookRoundedIcon} from "@/components/icons/material-symbols-checkbook-rounded"
+import {Groups2Icon} from "@/components/icons/material-symbols-groups-2"
+
 
 const adminNav = [
   { title: "Dashboard", url: "/admin", icon: <LayoutDashboardIcon /> },
   { title: "Manage Members", url: "/admin/members", icon: <ListIcon /> },
   { title: "Department", url: "/admin/department", icon: <ChartBarIcon /> },
-  { title: "Create Events", url: "/admin/eventsPage", icon: <FolderIcon /> },
+  { title: "Manage Events", url: "/admin/eventsPage", icon: <FolderIcon /> },
 ]
 
 const execNav = [
@@ -34,23 +38,25 @@ const execNav = [
 ]
 
 const userNav = [
-  { title: "Dashboard User", url: "/admin", icon: <LayoutDashboardIcon /> },
-  { title: "Placeholder", url: "#", icon: <FolderIcon /> },
+  { title: "Dashboard User", url: "/users", icon: <LayoutDashboardIcon /> },
+  { title: "Evaluation", url: "/users/evaluation", icon: <FolderIcon /> },
 ]
 
 const adminOperations = [
-  { name: "Evaluations", url: "/admin/evaluation", icon: <DatabaseIcon /> },
-  { name: "Attendance", url: "/admin/attendance", icon: <FileChartColumnIcon /> },
-  { name: "Membership", url: "#", icon: <FileChartColumnIcon /> },
+  { name: "Event History", url: "/admin/evHistory", icon: <HistoryRoundedIcon /> },
+  { name: "Evaluations", url: "/admin/evaluation", icon: <FolderIcon /> },
+  { name: "Attendance", url: "/admin/attendance", icon: <CheckbookRoundedIcon /> },
+  { name: "Membership", url: "/admin/membership", icon: <Groups2Icon /> },
   { name: "Reports", url: "/admin/reportsPage", icon: <FileIcon /> },
 ]
 
 const execOperations = [
-  { name: "Placeholder", url: "#", icon: <DatabaseIcon /> },
+  { name: "Evaluation", url: "/users/evaluation", icon: <FolderIcon /> },
+
 ]
 
 const userOperations = [
-  { name: "Placeholder", url: "#", icon: <DatabaseIcon /> },
+  { name: "Evaluation", url: "/users/evaluation", icon: <FolderIcon /> },
 ]
 
 const data = {
