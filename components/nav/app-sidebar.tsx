@@ -18,8 +18,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, UsersIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, DatabaseIcon, FileChartColumnIcon, FileIcon, CommandIcon } from "lucide-react"
-import { Skeleton } from "../ui/skeleton"
+import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, Settings2Icon, CircleHelpIcon, FileIcon } from "lucide-react"
 import {HistoryRoundedIcon} from "@/components/icons/material-symbols-history-rounded"
 import {CheckbookRoundedIcon} from "@/components/icons/material-symbols-checkbook-rounded"
 import {Groups2Icon} from "@/components/icons/material-symbols-groups-2"
@@ -53,6 +52,15 @@ const adminOperations = [
 const execOperations = [
   { name: "Evaluation", url: "/users/evaluation", icon: <FolderIcon /> },
 
+]
+
+const bodNav = [
+  { title: "Dashboard", url: "/users", icon: <LayoutDashboardIcon /> },
+  { title: "Evaluation", url: "/users/evaluation", icon: <FolderIcon /> },
+]
+
+const bodOperations = [
+  { name: "Evaluation", url: "/users/evaluation", icon: <FolderIcon /> },
 ]
 
 const userOperations = [
@@ -92,8 +100,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   if (roleLoading) return null
 
-  const navItems = role === 'executive' ? execNav : role === 'user' ? userNav : adminNav
-  const operationItems = role === 'executive' ? execOperations : role === 'user' ? userOperations : adminOperations
+  const navItems = role === 'bod' ? bodNav : role === 'executive' ? execNav : role === 'user' ? userNav : adminNav
+  const operationItems = role === 'bod' ? bodOperations : role === 'executive' ? execOperations : role === 'user' ? userOperations : adminOperations
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
