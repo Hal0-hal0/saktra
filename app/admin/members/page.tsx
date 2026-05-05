@@ -18,7 +18,7 @@ export default function CreateUserPage() {
 
 
   const getUser = async () => {
-    const {data, error} = await supabase 
+    const {data, error} = await supabase
     .from('profiles')
     .select('role,email,status,user_name,user_id,department,position')
     setUser(data ?? []);
@@ -82,12 +82,12 @@ export default function CreateUserPage() {
       <div>
         <h1 className='font-bold text-xl'>Manage Members</h1>
         <p>Lorem ipsum dolor sit, amet consectetur adipisicing elit. Animi ea ratione deserunt consectetur accusantium hic, magnam consequatur, ab quasi repellat exercitationem, fugit amet magni eos voluptas unde officia dolor vel!</p>
-        
+
         <div className='flex flex-col gap-5 mt-5  xl:flex-row lg:flex-row'>
           <Card size='default' className=' w-full max-w-sm'>
             <CardHeader>
               <CardTitle className='font-bold'>Admin</CardTitle>
-              <CardDescription>Total admins in the organization</CardDescription>
+              <CardDescription>Total admins in the organization and handles system.</CardDescription>
             </CardHeader>
             <CardContent>
               <h1 className='text-5xl font-semibold'>{adminCount}</h1>
