@@ -18,6 +18,7 @@ import { supabase } from "@/lib/supabase/supabase-client"
 import { useRouter } from "next/navigation"
 import React, { useState } from "react"
 import { LogoutRoundedIcon } from "@/components/icons/material-symbols-logout-rounded"
+import { toast } from "sonner"
 
 export function LogOutConfirmation({children}:{children: React.ReactNode}) {
   const [open, setOpen] = useState(false)
@@ -26,6 +27,7 @@ export function LogOutConfirmation({children}:{children: React.ReactNode}) {
 
   const logOut = async () => {
     await supabase.auth.signOut();
+    toast("Logged out successfully!", {position:"top-center"})
     router.push('/login')
   }
 

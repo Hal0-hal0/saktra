@@ -1,12 +1,8 @@
 'use client'
-import { useState } from 'react'
 import { columns, Payment } from "./columns"
 import { DataTable } from "./data-table"
-import { useEffect } from 'react'
-import { supabase } from '@/lib/supabase/supabase-client'
-import SkeletonMembers from './skeleton-members'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { useProfiles } from './profile-provider'
 
 export default function CreateUserPage() {
   const [user, setUser] = useState<any>(null);
@@ -87,47 +83,73 @@ export default function CreateUserPage() {
           <Card size='default' className=' w-full max-w-sm'>
             <CardHeader>
               <CardTitle className='font-bold'>Admin</CardTitle>
-              <CardDescription>Total admins in the organization and handles system.</CardDescription>
+              <CardDescription>Total admins in the organization</CardDescription>
             </CardHeader>
             <CardContent>
               <h1 className='text-5xl font-semibold'>{adminCount}</h1>
             </CardContent>
+            <CardHeader>
+            </CardHeader>
+            <CardFooter className='flex flex-col items-start'>
+              <CardTitle className='font-bold'>Admin</CardTitle>
+              <CardDescription>Total active admins in the organization</CardDescription>
+            </CardFooter>
           </Card>
 
           <Card size='default' className=' w-full max-w-sm'>
+            <CardContent>
+              <h1 className='text-5xl font-semibold'>{execCount}</h1>
+            </CardContent>
             <CardHeader>
-              <CardTitle className='font-bold'>Members</CardTitle>
-              <CardDescription>Total users in the organization except admins.</CardDescription>
             </CardHeader>
+            <CardFooter className='flex flex-col items-start'>
+              <CardTitle className='font-bold'>Executive</CardTitle>
+              <CardDescription>Total active Executives in the organization</CardDescription>
+            </CardFooter>
+          </Card>
+
+          <Card size='default' className=' w-full max-w-sm'>
             <CardContent>
               <h1 className='text-5xl font-semibold'>{userCount}</h1>
             </CardContent>
+            <CardHeader>
+            </CardHeader>
+            <CardFooter className='flex flex-col items-start'>
+              <CardTitle className='font-bold'>Members</CardTitle>
+              <CardDescription>Total users in the organization except admins.</CardDescription>
+            </CardFooter>
           </Card>
 
           <Card size='default' className=' w-full max-w-sm'>
-            <CardHeader>
-              <CardTitle className='font-bold'>Active Status</CardTitle>
-              <CardDescription>Total active users in the organization</CardDescription>
-            </CardHeader>
             <CardContent>
               <h1 className='text-5xl font-semibold'>{activeCount}</h1>
             </CardContent>
+            <CardHeader>
+            </CardHeader>
+            <CardFooter className='flex flex-col items-start'>
+              <CardTitle className='font-bold'>Active Status</CardTitle>
+              <CardDescription>Total active users in the organization in all departments</CardDescription>
+            </CardFooter>
           </Card>
 
           <Card size='default' className=' w-full max-w-sm'>
-            <CardHeader>
-              <CardTitle className='font-bold'>Inactive Status</CardTitle>
-              <CardDescription>Total inactive users in the organization</CardDescription>
-            </CardHeader>
             <CardContent>
               <h1 className='text-5xl font-semibold'>{inactiveCount}</h1>
             </CardContent>
+            <CardHeader>
+            </CardHeader>
+            <CardFooter className='flex flex-col items-start'>
+               <CardTitle className='font-bold'>Inactive Status</CardTitle>
+              <CardDescription>Total inactive users in all departments</CardDescription>
+            </CardFooter>
           </Card>
+
+
         </div>
 
       </div>
       <div className="container mx-auto py-5">
-        <DataTable columns={columns} data={user ?? []} />
+        <DataTable columns={columns} data={profiles} />
       </div>
     </div>
   )

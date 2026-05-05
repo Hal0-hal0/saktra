@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -23,6 +22,8 @@ import {
 } from "@/components/ui/select"
 import { useState } from "react"
 import { toast } from 'sonner'
+import { DiscardChangesAlert } from "@/components/ui/discard-changes-alert"
+import { useUnsavedChangesGuard } from "@/lib/use-unsaved-changes-guard"
 
 
 export function ButtonInviteUser() {
@@ -33,6 +34,35 @@ export function ButtonInviteUser() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [submit, setSubmit] = useState(false)
+
+  const resetForm = () => {
+    setOpen(false)
+    setSelectedRole('user')
+    setSelectedPosition('')
+    setDepartment('')
+    setEmail('')
+    setPassword('')
+    setSubmit(false)
+  }
+
+  const isDirty =
+    email.trim().length > 0 ||
+    password.trim().length > 0 ||
+    selectedRole !== 'user' ||
+    selectedPosition.trim().length > 0 ||
+    department.trim().length > 0
+
+  const {
+    cancelDiscard,
+    confirmDiscard,
+    confirmOpen,
+    handleOpenChange,
+    requestClose,
+    setConfirmOpen,
+  } = useUnsavedChangesGuard({
+    isDirty,
+    onDiscard: resetForm,
+  })
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
@@ -55,7 +85,7 @@ export function ButtonInviteUser() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, role:selectedRole, position:selectedPosition,department:department })
     })
-    const { data, error } = await res.json()
+    const { error } = await res.json()
 
     if (error) {
       toast.error(error, {position:'top-center'})
@@ -64,12 +94,7 @@ export function ButtonInviteUser() {
     }
 
     toast.success('User created successfully!', {position:'top-center'})
-    setOpen(false)
-    setSubmit(false)
-    setEmail('')
-    setPassword('')
-    setDepartment ('')
-    setSelectedPosition ('')
+    resetForm()
   }
 
 
@@ -101,7 +126,8 @@ export function ButtonInviteUser() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <>
+    <Dialog open={open} onOpenChange={(nextOpen) => handleOpenChange(nextOpen, setOpen)}>
       <form>
         <DialogTrigger asChild>
           <Button variant="default">Invite a KaSAKDAG</Button>
@@ -146,6 +172,7 @@ export function ButtonInviteUser() {
                   <SelectContent>
                     <SelectItem value="user">User</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="executive">Executive</SelectItem>
                   </SelectContent>
                 </Select>
             </Field>
@@ -165,7 +192,7 @@ export function ButtonInviteUser() {
             </Field>
             <Field>
                 <Label>Position</Label>
-                <Select onValueChange={setSelectedPosition}>
+                <Select onValueChange={setSelectedPosition} disabled={!department || selectedRole === 'executive'}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a Position" />
                   </SelectTrigger>
@@ -181,10 +208,10 @@ export function ButtonInviteUser() {
             </Field>
           </FieldGroup>
           <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button onClick={handleCreateUser}>
+            <Button type="button" variant="outline" onClick={requestClose}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleCreateUser}>
               {submit &&  <><Spinner data-icon="inline-start" /></>}
 
               Add User
@@ -193,5 +220,16 @@ export function ButtonInviteUser() {
         </DialogContent>
       </form>
     </Dialog>
+    <DiscardChangesAlert
+      open={confirmOpen}
+      onOpenChange={(nextOpen) => {
+        setConfirmOpen(nextOpen)
+        if (!nextOpen) {
+          cancelDiscard()
+        }
+      }}
+      onConfirm={confirmDiscard}
+    />
+    </>
   )
 }
