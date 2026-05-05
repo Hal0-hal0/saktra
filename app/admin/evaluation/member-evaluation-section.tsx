@@ -1,0 +1,583 @@
+'use client'
+
+import { useEffect, useMemo, useState } from "react"
+import { format } from "date-fns"
+import { Building2, CalendarDays, DoorClosed, PlayCircle, Search, ShieldCheck, Star, UserCheck, UsersRound } from "lucide-react"
+import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Spinner } from "@/components/ui/spinner"
+import { supabase } from "@/lib/supabase/supabase-client"
+
+type MemberProfile = {
+  user_id: string
+  user_name: string | null
+  email: string | null
+  role: string | null
+  status: string | null
+  department: string | null
+  position: string | null
+}
+
+type MemberEvaluationCycle = {
+  id: string
+  title: string
+  evaluation_open: boolean
+  evaluation_deadline: string | null
+  created_at: string
+  started_at: string
+  response_count: number
+}
+
+type AdminMemberEvaluationPayload = {
+  error?: string
+  cycles: MemberEvaluationCycle[]
+  openCycle: MemberEvaluationCycle | null
+  openCycles: MemberEvaluationCycle[]
+}
+
+function hasMemberValue(value?: string | null): value is string {
+  return Boolean(value && value !== "null")
+}
+
+function formatMemberValue(value?: string | null) {
+  if (!hasMemberValue(value)) return "Not set"
+  return value
+}
+
+function getMemberName(profile: MemberProfile) {
+  if (hasMemberValue(profile.user_name)) {
+    return profile.user_name
+  }
+
+  if (hasMemberValue(profile.email)) {
+    return profile.email
+  }
+
+  return "Member"
+}
+
+function getInitials(profile: MemberProfile) {
+  const source = getMemberName(profile)
+  const parts = source.split(/\s+/).filter(Boolean)
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("")
+}
+
+function formatCycleDate(value?: string | null) {
+  if (!value) return "Not set"
+  return format(new Date(value), "MMMM d, yyyy")
+}
+
+export default function MemberEvaluationSection() {
+  const [profiles, setProfiles] = useState<MemberProfile[]>([])
+  const [cycles, setCycles] = useState<MemberEvaluationCycle[]>([])
+  const [selectedMemberId, setSelectedMemberId] = useState("")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [startOpen, setStartOpen] = useState(false)
+  const [cycleTitle, setCycleTitle] = useState("Member Evaluation")
+  const [evaluationDeadline, setEvaluationDeadline] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  useEffect(() => {
+    let mounted = true
+
+    const fetchData = async () => {
+      setLoading(true)
+      const [profilesResult, cyclesResponse] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("user_id, user_name, email, role, status, department, position")
+          .order("user_name"),
+        fetch("/api/member-evaluation/admin", { cache: "no-store" }),
+      ])
+
+      if (!mounted) return
+
+      const cyclesData = (await cyclesResponse.json()) as AdminMemberEvaluationPayload
+
+      if (profilesResult.error || !cyclesResponse.ok) {
+        toast.error(profilesResult.error?.message || cyclesData.error || "Unable to load member evaluations.", { position: "top-center" })
+        setLoading(false)
+        return
+      }
+
+      const nextProfiles = (profilesResult.data ?? []) as MemberProfile[]
+      const evaluableProfiles = nextProfiles.filter((profile) => profile.role !== "admin")
+
+      setProfiles(nextProfiles)
+      setCycles(cyclesData.cycles ?? [])
+      setSelectedMemberId((current) => current || evaluableProfiles[0]?.user_id || "")
+      setLoading(false)
+    }
+
+    fetchData()
+
+    return () => {
+      mounted = false
+    }
+  }, [refreshKey])
+
+  const startMemberEvaluation = async () => {
+    if (!cycleTitle.trim() || !evaluationDeadline) {
+      toast.error("Add a title and close date before starting.", { position: "top-center" })
+      return
+    }
+
+    setActionLoading(true)
+    const res = await fetch("/api/member-evaluation/open", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: cycleTitle, evaluationDeadline }),
+    })
+    const data = await res.json()
+    setActionLoading(false)
+
+    if (!res.ok) {
+      toast.error(data.error || "Unable to start member evaluation.", { position: "top-center" })
+      return
+    }
+
+    setStartOpen(false)
+    setCycleTitle("Member Evaluation")
+    setEvaluationDeadline("")
+    setRefreshKey((value) => value + 1)
+    toast.success("Member evaluation started.", { position: "top-center" })
+  }
+
+  const closeMemberEvaluation = async (cycleId: string) => {
+    setActionLoading(true)
+    const res = await fetch("/api/member-evaluation/close", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cycleId }),
+    })
+    const data = await res.json()
+    setActionLoading(false)
+
+    if (!res.ok) {
+      toast.error(data.error || "Unable to end member evaluation.", { position: "top-center" })
+      return
+    }
+
+    setRefreshKey((value) => value + 1)
+    toast.success("Member evaluation ended.", { position: "top-center" })
+  }
+
+  const evaluableProfiles = useMemo(
+    () => profiles.filter((profile) => profile.role !== "admin"),
+    [profiles]
+  )
+
+  const visibleProfiles = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase()
+
+    if (!query) {
+      return evaluableProfiles
+    }
+
+    return evaluableProfiles.filter((profile) => {
+      const searchable = [
+        profile.user_name,
+        profile.email,
+        profile.role,
+        profile.status,
+        profile.department,
+        profile.position,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+
+      return searchable.includes(query)
+    })
+  }, [evaluableProfiles, searchTerm])
+
+  const selectedMember = useMemo(
+    () => evaluableProfiles.find((profile) => profile.user_id === selectedMemberId) ?? null,
+    [evaluableProfiles, selectedMemberId]
+  )
+
+  const activeMemberCount = useMemo(
+    () => evaluableProfiles.filter((profile) => profile.status === "active").length,
+    [evaluableProfiles]
+  )
+
+  const departmentCount = useMemo(() => {
+    return new Set(
+      evaluableProfiles
+        .map((profile) => profile.department)
+        .filter((department): department is string => Boolean(department && department !== "null"))
+    ).size
+  }, [evaluableProfiles])
+
+  const executiveCount = useMemo(
+    () => evaluableProfiles.filter((profile) => profile.role === "executive").length,
+    [evaluableProfiles]
+  )
+
+  const openCycles = useMemo(
+    () => cycles.filter((cycle) => cycle.evaluation_open),
+    [cycles]
+  )
+
+  const closedCycles = useMemo(
+    () => cycles.filter((cycle) => !cycle.evaluation_open),
+    [cycles]
+  )
+
+  if (loading) {
+    return (
+      <div className="flex min-h-60 items-center justify-center rounded-[24px] border bg-card">
+        <Spinner />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-8">
+      <section className="rounded-[28px] bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.16),transparent_38%),linear-gradient(135deg,hsl(var(--card)),hsl(var(--muted)/0.55))] p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl space-y-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              Member evaluation center
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight">Member Evaluations</h2>
+            <p className="text-sm text-muted-foreground">
+              Review member-focused evaluation records separately from event feedback.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Dialog open={startOpen} onOpenChange={setStartOpen}>
+              <DialogTrigger asChild>
+                <Button type="button">
+                  <PlayCircle className="size-4" />
+                  Start Member Eval
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Start Member Evaluation</DialogTitle>
+                  <DialogDescription>
+                    Open a member evaluation round. BOD and Executive Members will only see targets allowed by their role.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Evaluation title</p>
+                    <Input value={cycleTitle} onChange={(event) => setCycleTitle(event.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Close date</p>
+                    <Input type="date" value={evaluationDeadline} onChange={(event) => setEvaluationDeadline(event.target.value)} />
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setStartOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="button" onClick={startMemberEvaluation} disabled={actionLoading || !cycleTitle.trim() || !evaluationDeadline}>
+                    {actionLoading && <Spinner data-icon="inline-start" />}
+                    Start Evaluation
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Badge variant="outline">{evaluableProfiles.length} members</Badge>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Total members</CardDescription>
+            <CardTitle className="text-3xl">{evaluableProfiles.length}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            <UsersRound className="size-4" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Active members</CardDescription>
+            <CardTitle className="text-3xl">{activeMemberCount}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            <UserCheck className="size-4" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Departments</CardDescription>
+            <CardTitle className="text-3xl">{departmentCount}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            <Building2 className="size-4" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Executives</CardDescription>
+            <CardTitle className="text-3xl">{executiveCount}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            <ShieldCheck className="size-4" />
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Open Member Evaluation</h2>
+          <p className="text-sm text-muted-foreground">
+            Users can evaluate members only while a member evaluation round is open.
+          </p>
+        </div>
+
+        {openCycles.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            {openCycles.map((cycle) => (
+              <Card key={cycle.id} className="overflow-hidden border-primary/20 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--primary)/0.08))]">
+                <CardHeader>
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge>Open Now</Badge>
+                        <Badge variant="outline">{cycle.response_count} responses</Badge>
+                      </div>
+                      <CardTitle>{cycle.title}</CardTitle>
+                      <CardDescription>
+                        BOD evaluates Executive Members. Executives evaluate members in their department.
+                      </CardDescription>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl border bg-background/80 p-3">
+                        <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+                          <CalendarDays className="size-4" />
+                          Closes on
+                        </div>
+                        <p className="mt-1 text-sm font-semibold">{formatCycleDate(cycle.evaluation_deadline)}</p>
+                      </div>
+                      <div className="rounded-2xl border bg-background/80 p-3">
+                        <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+                          <UsersRound className="size-4" />
+                          Members
+                        </div>
+                        <p className="mt-1 text-sm font-semibold">{evaluableProfiles.length} in scope pool</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardFooter className="justify-end">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => closeMemberEvaluation(cycle.id)}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading && <Spinner data-icon="inline-start" />}
+                    End Member Eval
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-[24px] border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
+            No member evaluation is currently open. Start one when you are ready for BOD and Executives to evaluate.
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Closed Member Evaluations</h2>
+          <p className="text-sm text-muted-foreground">Review previous member evaluation rounds.</p>
+        </div>
+
+        {closedCycles.length === 0 ? (
+          <div className="rounded-[24px] border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
+            No closed member evaluations yet.
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {closedCycles.map((cycle) => (
+              <Card key={cycle.id} className="border-border/70">
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <CardTitle>{cycle.title}</CardTitle>
+                      <CardDescription>Closed on {formatCycleDate(cycle.evaluation_deadline)}</CardDescription>
+                    </div>
+                    <Badge variant="outline">Closed</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-muted/50 p-3">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Responses</p>
+                    <p className="mt-1 font-medium">{cycle.response_count}</p>
+                  </div>
+                  <div className="rounded-xl bg-muted/50 p-3">
+                    <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+                      <DoorClosed className="size-4" />
+                      Status
+                    </div>
+                    <p className="mt-1 font-medium">Closed</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <Card className="min-h-[460px]">
+          <CardHeader className="gap-4">
+            <div>
+              <CardTitle>Members</CardTitle>
+              <CardDescription>Select a member to view their evaluation summary.</CardDescription>
+            </div>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                className="pl-9"
+                placeholder="Search members"
+                onChange={(event) => setSearchTerm(event.target.value)}
+              />
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            {visibleProfiles.length === 0 ? (
+              <div className="rounded-xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
+                No members found.
+              </div>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2">
+                {visibleProfiles.map((profile) => {
+                  const active = selectedMemberId === profile.user_id
+
+                  return (
+                    <button
+                      key={profile.user_id}
+                      type="button"
+                      className={`rounded-2xl border p-4 text-left transition ${
+                        active
+                          ? "border-primary bg-primary/8 ring-2 ring-primary/20"
+                          : "border-border bg-card hover:border-primary/40 hover:bg-muted/40"
+                      }`}
+                      onClick={() => setSelectedMemberId(profile.user_id)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                          {getInitials(profile)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium">{getMemberName(profile)}</p>
+                          <p className="truncate text-sm text-muted-foreground">{formatMemberValue(profile.email)}</p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Badge variant={profile.status === "active" ? "default" : "secondary"}>
+                              {formatMemberValue(profile.status)}
+                            </Badge>
+                            <Badge variant="outline">{formatMemberValue(profile.role)}</Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="min-h-[460px]">
+          <CardHeader>
+            <CardTitle>{selectedMember ? getMemberName(selectedMember) : "Member Details"}</CardTitle>
+            <CardDescription>Member evaluation summary and profile context.</CardDescription>
+          </CardHeader>
+
+          {selectedMember ? (
+            <>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-3 rounded-2xl border bg-muted/40 p-4">
+                  <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                    {getInitials(selectedMember)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{formatMemberValue(selectedMember.email)}</p>
+                    <p className="text-sm capitalize text-muted-foreground">
+                      {formatMemberValue(selectedMember.department)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl bg-muted/45 p-3">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Position</p>
+                    <p className="mt-1 font-medium capitalize">{formatMemberValue(selectedMember.position)}</p>
+                  </div>
+                  <div className="rounded-xl bg-muted/45 p-3">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Role</p>
+                    <p className="mt-1 font-medium capitalize">{formatMemberValue(selectedMember.role)}</p>
+                  </div>
+                  <div className="rounded-xl bg-muted/45 p-3">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Status</p>
+                    <p className="mt-1 font-medium capitalize">{formatMemberValue(selectedMember.status)}</p>
+                  </div>
+                  <div className="rounded-xl bg-muted/45 p-3">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Member score</p>
+                    <p className="mt-1 font-medium">No score yet</p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+                  No member evaluation responses are recorded yet.
+                </div>
+              </CardContent>
+
+              <CardFooter className="justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Star className="size-4" />
+                  Member evaluation
+                </div>
+                <Badge variant="outline">Pending</Badge>
+              </CardFooter>
+            </>
+          ) : (
+            <CardContent>
+              <div className="rounded-xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
+                Select a member to view details.
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      </section>
+    </div>
+  )
+}
