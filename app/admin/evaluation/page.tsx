@@ -1,9 +1,5 @@
-import React from 'react'
+import EvaluationTabs from "./evaluation-tabs"
 
-const Evaluation = () => {
-  return (
-    <div>Evaluation</div>
-  )
+export default function EvaluationPage() {
+  return <EvaluationTabs />
 }
-
-export default Evaluation

@@ -20,9 +20,9 @@ import {
 } from "@/components/ui/sidebar"
 import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, UsersIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, DatabaseIcon, FileChartColumnIcon, FileIcon, CommandIcon } from "lucide-react"
 import { Skeleton } from "../ui/skeleton"
-import {HistoryRoundedIcon} from "@/components/icons/material-symbols-history-rounded"
-import {CheckbookRoundedIcon} from "@/components/icons/material-symbols-checkbook-rounded"
-import {Groups2Icon} from "@/components/icons/material-symbols-groups-2"
+import { HistoryRoundedIcon } from "@/components/icons/material-symbols-history-rounded"
+import { CheckbookRoundedIcon } from "@/components/icons/material-symbols-checkbook-rounded"
+import { Groups2Icon } from "@/components/icons/material-symbols-groups-2"
 
 
 const adminNav = [
@@ -119,7 +119,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navItems} />
-        <NavOperations items={operationItems} /> 
+        <NavOperations items={operationItems} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

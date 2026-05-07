@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -23,16 +22,55 @@ import {
 } from "@/components/ui/select"
 import { useState } from "react"
 import { toast } from 'sonner'
+import { DiscardChangesAlert } from "@/components/ui/discard-changes-alert"
+import { useUnsavedChangesGuard } from "@/lib/use-unsaved-changes-guard"
+import { bodPositions, departmentOptions } from "@/lib/member-evaluation"
 
 
 export function ButtonInviteUser() {
   const [open, setOpen] = useState(false)
   const [selectedRole, setSelectedRole] = useState('user')
-  const [selectedPosition,setSelectedPosition] = useState('')
+  const [bodPosition, setBodPosition] = useState('')
   const [department, setDepartment] = useState('')
+  const [position, setPosition] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [submit, setSubmit] = useState(false)
+
+  const isExecutiveInvite = selectedRole === 'executive'
+  const isBodInvite = selectedRole === 'bod'
+  const isMemberInvite = selectedRole === 'user'
+
+  const resetForm = () => {
+    setOpen(false)
+    setSelectedRole('user')
+    setBodPosition('')
+    setDepartment('')
+    setPosition('')
+    setEmail('')
+    setPassword('')
+    setSubmit(false)
+  }
+
+  const isDirty =
+    email.trim().length > 0 ||
+    password.trim().length > 0 ||
+    selectedRole !== 'user' ||
+    bodPosition.trim().length > 0 ||
+    position.trim().length > 0 ||
+    department.trim().length > 0
+
+  const {
+    cancelDiscard,
+    confirmDiscard,
+    confirmOpen,
+    handleOpenChange,
+    requestClose,
+    setConfirmOpen,
+  } = useUnsavedChangesGuard({
+    isDirty,
+    onDiscard: resetForm,
+  })
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
@@ -44,18 +82,51 @@ export function ButtonInviteUser() {
 
   const handleCreateUser = async () => {
     setSubmit(true)
-    if (!email || !selectedRole || !password || !selectedPosition || !department) {
+    if (!email || !selectedRole || !password) {
       toast.error('Please fill in all fields' ,{position:"top-center"})
       setSubmit(false)
       return
     }
 
+    if ((isExecutiveInvite || isMemberInvite) && !department) {
+      toast.error('Please select a department.' ,{position:"top-center"})
+      setSubmit(false)
+      return
+    }
+
+    if (isMemberInvite && !position) {
+      toast.error('Please select a position.' ,{position:"top-center"})
+      setSubmit(false)
+      return
+    }
+
+    if (isBodInvite && !bodPosition) {
+      toast.error('Please select a BOD position.' ,{position:"top-center"})
+      setSubmit(false)
+      return
+    }
+
+    const nextDepartment = (isExecutiveInvite || isMemberInvite) ? department : ''
+    const nextPosition = isBodInvite
+      ? bodPosition
+      : isExecutiveInvite
+        ? 'Executive Member'
+        : selectedRole === 'admin'
+          ? 'Admin'
+          : position || 'Member'
+
     const res = await fetch('/api/create-user', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, role:selectedRole, position:selectedPosition,department:department })
+      body: JSON.stringify({
+        email,
+        password,
+        role: selectedRole,
+        position: nextPosition,
+        department: nextDepartment,
+      })
     })
-    const { data, error } = await res.json()
+    const { error } = await res.json()
 
     if (error) {
       toast.error(error, {position:'top-center'})
@@ -64,44 +135,12 @@ export function ButtonInviteUser() {
     }
 
     toast.success('User created successfully!', {position:'top-center'})
-    setOpen(false)
-    setSubmit(false)
-    setEmail('')
-    setPassword('')
-    setDepartment ('')
-    setSelectedPosition ('')
-  }
-
-
-  const departmentPositions: Record<string, string[]> = {
-    'public relations': [
-      'Marketing Officer',
-      'Partnership and Sponsorship Officer',
-      'Caption Writing Officer',
-      'Member',
-    ],
-    'finance and administration': [
-      'Secretariat Officer',
-      'Human Resource Officer',
-      'Finance Officer',
-      'Member',
-    ],
-    'strategic operations': [
-      'Project and Program',
-      'Research and Development',
-      'Logistics',
-      'Member',
-    ],
-    'media and creatives': [
-      'Productions Officer',
-      'Creatives Officer',
-      'Technicals Officer',
-      'Member',
-    ],
+    resetForm()
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <>
+    <Dialog open={open} onOpenChange={(nextOpen) => handleOpenChange(nextOpen, setOpen)}>
       <form>
         <DialogTrigger asChild>
           <Button variant="default">Invite a KaSAKDAG</Button>
@@ -139,53 +178,88 @@ export function ButtonInviteUser() {
             </Field>
             <Field>
                 <Label>Role</Label>
-                <Select onValueChange={setSelectedRole} defaultValue={selectedRole}>
+                <Select
+                  value={selectedRole}
+                  onValueChange={(value) => {
+                    setSelectedRole(value)
+                    setDepartment('')
+                    setPosition('')
+                    setBodPosition('')
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="user">Member</SelectItem>
+                    <SelectItem value="executive">Executive Member</SelectItem>
+                    <SelectItem value="bod">Board of Directors</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="executive">Executive</SelectItem>
                   </SelectContent>
                 </Select>
             </Field>
+            {isExecutiveInvite || isMemberInvite ? (
             <Field>
                 <Label>Department</Label>
-                <Select onValueChange={setDepartment}>
+                <Select value={department} onValueChange={(value) => {
+                  setDepartment(value)
+                  setPosition('')
+                }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a department" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="finance and administration">Finance and Administration Department</SelectItem>
-                    <SelectItem value="public relations">Public Relations Department</SelectItem>
-                    <SelectItem value="media and creatives">Media and Creatives Department </SelectItem>
-                    <SelectItem value="strategic operations" >Strategic Operations Department</SelectItem>
+                    {departmentOptions.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
             </Field>
+            ) : null}
+
+            {isMemberInvite && department ? (
             <Field>
                 <Label>Position</Label>
-                <Select onValueChange={setSelectedPosition}>
+                <Select value={position} onValueChange={setPosition}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a Position" />
+                    <SelectValue placeholder="Select a position" />
                   </SelectTrigger>
                   <SelectContent>
-                    {department && departmentPositions[department]
-                      ? departmentPositions[department].map((pos) => (
-                          <SelectItem key={pos} value={pos}>{pos}</SelectItem>
-                        ))
-                      : null
-                    }
+                    {departmentOptions.find((item) => item.value === department)?.positions.map((pos) => (
+                      <SelectItem key={pos} value={pos}>
+                        {pos}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
             </Field>
+            ) : null}
+
+            {isBodInvite ? (
+            <Field>
+                <Label>BOD Position</Label>
+                <Select value={bodPosition} onValueChange={setBodPosition}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a BOD position" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bodPositions.map((position) => (
+                      <SelectItem key={position} value={position}>
+                        {position}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+            </Field>
+            ) : null}
           </FieldGroup>
           <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button onClick={handleCreateUser}>
+            <Button type="button" variant="outline" onClick={requestClose}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleCreateUser}>
               {submit &&  <><Spinner data-icon="inline-start" /></>}
 
               Add User
@@ -194,5 +268,16 @@ export function ButtonInviteUser() {
         </DialogContent>
       </form>
     </Dialog>
+    <DiscardChangesAlert
+      open={confirmOpen}
+      onOpenChange={(nextOpen) => {
+        setConfirmOpen(nextOpen)
+        if (!nextOpen) {
+          cancelDiscard()
+        }
+      }}
+      onConfirm={confirmDiscard}
+    />
+    </>
   )
 }
