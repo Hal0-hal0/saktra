@@ -1,14 +1,16 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal } from "lucide-react"
+import { ArrowUpDown, MoreHorizontal, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import EventDrawer from "../eventsPage/event-drawer"
+import { ParticipantsModal } from "../eventsPage/participants-modal"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { OverviewKeyRoundedIcon } from "@/components/icons/material-symbols-overview-key-rounded"
@@ -37,12 +39,21 @@ function HistoryEventActions({ event }: { event: EventHistoryItem }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
+
         <EventDrawer eventId={event.id} showUpdateButton={false}>
           <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
             <OverviewKeyRoundedIcon />
             <span className="text-accent-foreground">View More</span>
           </DropdownMenuItem>
         </EventDrawer>
+
+        <ParticipantsModal eventId={event.id} eventName={event.name}>
+          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+            <Users className="size-4" />
+            <span className="text-accent-foreground">See Participants</span>
+          </DropdownMenuItem>
+        </ParticipantsModal>
+
       </DropdownMenuContent>
     </DropdownMenu>
   )

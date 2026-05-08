@@ -44,7 +44,7 @@ const Inactive = () => {
             </div>
 
             <div className="flex flex-col gap-1">
-              <CardTitle className="text-xl font-semibold tracking-tight text-foreground">
+              <CardTitle className="text-xl font-semibold tracking-tight text-foreground text-red-500">
                 Account Inactive
               </CardTitle>
               <CardDescription className="text-sm text-muted-foreground leading-relaxed">

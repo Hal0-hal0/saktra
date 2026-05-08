@@ -60,21 +60,7 @@ export function NavUser({
 
   useEffect (() => {
     getUser()
-
-    const channel = supabase
-    .channel('profile')
-    .on('postgres_changes',
-      {event:'*', schema:'public', table:'profiles'},
-      () => {
-        getUser() //refetch when chnages
-      }
-    )
-    .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [])
+  },[])
 
   return (
     <SidebarMenu>
@@ -122,25 +108,30 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <Link href={'/admin/profile'}>
-                <DropdownMenuItem>
-                  <CircleUserRoundIcon />
-                  Profile
-                </DropdownMenuItem>
+              <Link href={'/exec/profile'}>
+                <DropdownMenuItem >
+                <CircleUserRoundIcon
+                />
+                Profile
+              </DropdownMenuItem>
               </Link>
+              
               <DropdownMenuItem>
-                <CreditCardIcon />
+                <CreditCardIcon
+                />
                 Billing
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <BellIcon />
+                <BellIcon
+                />
                 Notifications
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <LogOutConfirmation>
               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                <LogOutIcon />
+                <LogOutIcon
+                />
                 Log out
               </DropdownMenuItem>
             </LogOutConfirmation>

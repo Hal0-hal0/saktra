@@ -40,6 +40,7 @@ const execNav = [
 
 const userNav = [
   { title: "Dashboard User", url: "/users", icon: <LayoutDashboardIcon /> },
+  { title: "Events", url: "/users/events", icon: <LayoutDashboardIcon /> },
   { title: "Evaluation", url: "/users/evaluation", icon: <FolderIcon /> },
 ]
 
@@ -102,8 +103,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   if (roleLoading) return null
 
-  const navItems = role === 'bod' ? bodNav : role === 'executive' ? execNav : role === 'user' ? userNav : adminNav
-  const operationItems = role === 'bod' ? bodOperations : role === 'executive' ? execOperations : role === 'user' ? userOperations : adminOperations
+  const navItems = role === 'executive' ? execNav : role === 'user' ? userNav : adminNav
+  const operationItems = role === 'executive' ? execOperations : role === 'user' ? userOperations : adminOperations
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>

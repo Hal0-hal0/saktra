@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, CheckCheckIcon, MoreHorizontal } from "lucide-react"
+import { ArrowUpDown, CheckCheckIcon, MoreHorizontal, Users } from "lucide-react"
 import { DeleteRoundedIcon } from "@/components/icons/material-symbols-delete-rounded"
 import { toast } from 'sonner'
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import EventDrawer from "./event-drawer"
+import { ParticipantsModal } from "./participants-modal"
 
 import {
   AlertDialog,
@@ -30,17 +31,18 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Spinner } from "@/components/ui/spinner"
 import { OverviewKeyRoundedIcon } from "@/components/icons/material-symbols-overview-key-rounded"
+
 export type Event = {
-  id:string
-  participants_id:string
-  date_start:string
-  date_end:string
+  id: string
+  participants_id: string
+  date_start: string
+  date_end: string
   time_start: string
-  time_end:string
-  name:string
-  description:string
-  location:string
-  venue:string
+  time_end: string
+  name: string
+  description: string
+  location: string
+  venue: string
   status?: string
 }
 
@@ -64,7 +66,7 @@ function EventActions({ event }: { event: Event }) {
     }
 
     setloading(false)
-    toast.success('Event Deleted Successfully!', { position:"top-center" })
+    toast.success('Event Deleted Successfully!', { position: "top-center" })
   }
 
   const handleMarkDone = async () => {
@@ -97,14 +99,23 @@ function EventActions({ event }: { event: Event }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
+
         <EventDrawer eventId={event.id}>
           <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-            <OverviewKeyRoundedIcon/>
+            <OverviewKeyRoundedIcon />
             <span className="text-accent-foreground">View More</span>
           </DropdownMenuItem>
         </EventDrawer>
 
+        <ParticipantsModal eventId={event.id} eventName={event.name}>
+          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+            <Users className="size-4" />
+            <span className="text-accent-foreground">See Participants</span>
+          </DropdownMenuItem>
+        </ParticipantsModal>
+
         <DropdownMenuSeparator />
+
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <DropdownMenuItem onSelect={(e) => e.preventDefault()} disabled={doneLoading}>
@@ -135,14 +146,14 @@ function EventActions({ event }: { event: Event }) {
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-              <DeleteRoundedIcon/>
+              <DeleteRoundedIcon />
               <span className="text-destructive">Delete</span>
             </DropdownMenuItem>
           </AlertDialogTrigger>
           <AlertDialogContent size="sm">
             <AlertDialogHeader>
               <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
-                <DeleteRoundedIcon/>
+                <DeleteRoundedIcon />
               </AlertDialogMedia>
               <AlertDialogTitle>Do you want to delete this event?</AlertDialogTitle>
               <AlertDialogDescription>
@@ -152,12 +163,13 @@ function EventActions({ event }: { event: Event }) {
             <AlertDialogFooter>
               <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
               <AlertDialogAction variant="destructive" onClick={handleDelete}>
-                {loading && <Spinner/> }
+                {loading && <Spinner />}
                 Confirm
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -167,7 +179,7 @@ export const columns: ColumnDef<Event>[] = [
   {
     accessorKey: "name",
     cell: ({ row }) => {
-    return <span className="capitalize">{row.getValue("name")}</span>
+      return <span className="capitalize">{row.getValue("name")}</span>
     },
     header: ({ column }) => {
       return (
@@ -185,7 +197,7 @@ export const columns: ColumnDef<Event>[] = [
     accessorKey: "description",
     cell: ({ row }) => {
       const description = (row.getValue("description") as string) ?? ''
-     return  <span>{description?.length > 50 ? description.slice(0, 50) + '...' : description}</span>
+      return <span>{description?.length > 50 ? description.slice(0, 50) + '...' : description}</span>
     },
     header: ({ column }) => {
       return (
@@ -202,27 +214,27 @@ export const columns: ColumnDef<Event>[] = [
   {
     accessorKey: "date_start",
     header: "Event Start",
-  }, 
+  },
   {
     accessorKey: "date_end",
     header: "Event End",
     cell: ({ row }) => {
-    return <span className="capitalize">{row.getValue("date_end")}</span>
-  }
+      return <span className="capitalize">{row.getValue("date_end")}</span>
+    }
   },
-      {
+  {
     accessorKey: "time_start",
     header: "Time Start",
   },
-      {
+  {
     accessorKey: "time_end",
     header: "Time End",
   },
-    {
+  {
     accessorKey: "location",
     header: "Location",
   },
-    {
+  {
     accessorKey: "venue",
     header: "Venue",
   },
