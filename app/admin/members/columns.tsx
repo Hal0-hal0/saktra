@@ -40,7 +40,7 @@ export type Payment = {
   role: string
   status: string
   department: string
-  position:string
+  position: string
   created_at: Date
 }
 
@@ -48,7 +48,7 @@ export const columns: ColumnDef<Payment>[] = [
   {
     accessorKey: "role",
     cell: ({ row }) => {
-    return <span className="capitalize">{row.getValue("role")}</span>
+      return <span className="capitalize">{row.getValue("role")}</span>
     },
     header: ({ column }) => {
       return (
@@ -79,29 +79,29 @@ export const columns: ColumnDef<Payment>[] = [
   {
     accessorKey: "user_name",
     header: "Username",
-  }, 
-    {
+  },
+  {
     accessorKey: "department",
     header: "Department",
     cell: ({ row }) => {
-    return <span className="capitalize">{row.getValue("department")}</span>
-  }
+      return <span className="capitalize">{row.getValue("department")}</span>
+    }
   },
-    {
-    accessorKey:"position",
+  {
+    accessorKey: "position",
     header: "Position",
   },
 
   {
     accessorKey: "status",
     cell: ({ row }) => {
-    const status = row.getValue("status")
-    return status === "active" ? (
-    <Badge className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300">Active</Badge>
+      const status = row.getValue("status")
+      return status === "active" ? (
+        <Badge className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300">Active</Badge>
       ) : (
         <Badge className="bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300">Inactive</Badge>
       )
-    },  
+    },
     header: ({ column }) => {
       return (
         <Button
@@ -122,7 +122,7 @@ export const columns: ColumnDef<Payment>[] = [
       const user = row.original
 
       const handleDelete = async () => {
-          const res = await fetch('/api/delete-user', {
+        const res = await fetch('/api/delete-user', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: user.user_id })
@@ -133,10 +133,10 @@ export const columns: ColumnDef<Payment>[] = [
           toast.error(error)
           return
         }
-        toast.success('Event deleted!', {position:"top-center"})
+        toast.success('User deleted!', { position: "top-center" })
       }
-      
- 
+
+
       return (
         <DropdownMenu >
           <DropdownMenuTrigger asChild >
@@ -149,32 +149,32 @@ export const columns: ColumnDef<Payment>[] = [
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <UpdateDrawer user={user}>
               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                <PencilLineIcon/>Update User
+                <PencilLineIcon />Update User
               </DropdownMenuItem>
             </UpdateDrawer>
-            
+
             <DropdownMenuSeparator />
 
-              <AlertDialog open={open} onOpenChange={setOpen}>
-                <AlertDialogTrigger asChild onClick={() => setOpen(true)}>
-                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}><DeleteRoundedIcon/><span className="text-destructive">Delete</span></DropdownMenuItem>
-                </AlertDialogTrigger>
-                <AlertDialogContent size="sm">
-                  <AlertDialogHeader>
-                    <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
-                      <DeleteRoundedIcon/>
-                    </AlertDialogMedia>
-                    <AlertDialogTitle>Do you want to delete this user: <span className="font-bold">{user.email}</span> ?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action is irreversible. Once user is being deleted all it's data will be wiped out in the database.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
-                    <AlertDialogAction variant="destructive" onClick={handleDelete}>Confirm</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+            <AlertDialog open={open} onOpenChange={setOpen}>
+              <AlertDialogTrigger asChild onClick={() => setOpen(true)}>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}><DeleteRoundedIcon /><span className="text-destructive">Delete</span></DropdownMenuItem>
+              </AlertDialogTrigger>
+              <AlertDialogContent size="sm">
+                <AlertDialogHeader>
+                  <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+                    <DeleteRoundedIcon />
+                  </AlertDialogMedia>
+                  <AlertDialogTitle>Do you want to delete this user: <span className="font-bold">{user.email}</span> ?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action is irreversible. Once user is being deleted all it's data will be wiped out in the database.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
+                  <AlertDialogAction variant="destructive" onClick={handleDelete}>Confirm</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </DropdownMenuContent>
         </DropdownMenu>
       )

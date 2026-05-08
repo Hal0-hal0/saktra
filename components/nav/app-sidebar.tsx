@@ -8,6 +8,7 @@ import { NavOperations } from "@/components/nav/nav-operations"
 import { NavMain } from "@/components/nav/nav-main"
 import { NavSecondary } from "@/components/nav/nav-secondary"
 import { NavUser } from "@/components/nav/nav-user"
+import { GroupAddIcon } from "../icons/material-symbols-group-add"
 import Image from "next/image"
 import {
   Sidebar,
@@ -18,18 +19,18 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, UsersIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, DatabaseIcon, FileChartColumnIcon, FileIcon, CommandIcon } from "lucide-react"
-import { Skeleton } from "../ui/skeleton"
+import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, Settings2Icon, CircleHelpIcon, FileIcon } from "lucide-react"
 import { HistoryRoundedIcon } from "@/components/icons/material-symbols-history-rounded"
 import { CheckbookRoundedIcon } from "@/components/icons/material-symbols-checkbook-rounded"
 import { Groups2Icon } from "@/components/icons/material-symbols-groups-2"
-
+import { CalendarAddOnIcon } from "../icons/material-symbols-calendar-add-on"
+import { DataCheckIcon } from "../icons/material-symbols-data-check"
 
 const adminNav = [
   { title: "Dashboard", url: "/admin", icon: <LayoutDashboardIcon /> },
-  { title: "Manage Members", url: "/admin/members", icon: <ListIcon /> },
+  { title: "Manage Members", url: "/admin/members", icon: <GroupAddIcon /> },
   { title: "Department", url: "/admin/department", icon: <ChartBarIcon /> },
-  { title: "Manage Events", url: "/admin/eventsPage", icon: <FolderIcon /> },
+  { title: "Manage Events", url: "/admin/eventsPage", icon: <CalendarAddOnIcon /> },
 ]
 
 const execNav = [
@@ -45,19 +46,28 @@ const userNav = [
 
 const adminOperations = [
   { name: "Event History", url: "/admin/evHistory", icon: <HistoryRoundedIcon /> },
-  { name: "Evaluations", url: "/admin/evaluation", icon: <FolderIcon /> },
+  { name: "Evaluations", url: "/admin/evaluation", icon: <DataCheckIcon /> },
   { name: "Attendance", url: "/admin/attendance", icon: <CheckbookRoundedIcon /> },
   { name: "Membership", url: "/admin/membership", icon: <Groups2Icon /> },
   { name: "Reports", url: "/admin/reportsPage", icon: <FileIcon /> },
 ]
 
 const execOperations = [
-  { name: "Evaluation", url: "/users/evaluation", icon: <FolderIcon /> },
+  { name: "Evaluation", url: "/users/evaluation", icon: <DataCheckIcon /> },
 
 ]
 
+const bodNav = [
+  { title: "Dashboard", url: "/users", icon: <LayoutDashboardIcon /> },
+  { title: "Evaluation", url: "/users/evaluation", icon: <DataCheckIcon /> },
+]
+
+const bodOperations = [
+  { name: "Evaluation", url: "/users/evaluation", icon: <DataCheckIcon /> },
+]
+
 const userOperations = [
-  { name: "Evaluation", url: "/users/evaluation", icon: <FolderIcon /> },
+  { name: "Evaluation", url: "/users/evaluation", icon: <DataCheckIcon /> },
 ]
 
 const data = {
