@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import QRCode from "qrcode"
-import { format, parse } from "date-fns"
+import { format, parse, isBefore, startOfDay, parseISO } from "date-fns"
 import { QrCode, CalendarDays, Clock3, MapPin } from "lucide-react"
 import { supabase } from "@/lib/supabase/supabase-client"
 import { Button } from "@/components/ui/button"
@@ -96,8 +96,18 @@ const AttendancePage = () => {
   }, [])
 
   const sortedEvents = useMemo(() => {
+    const today = startOfDay(new Date())
     return [...events]
-      .filter((event) => event.status !== "done")
+      .filter((event) => {
+        if (event.status === "done") return false
+        if (event.date_end) {
+          const endDate = startOfDay(parseISO(event.date_end))
+          if (isBefore(endDate, today)) {
+            return false
+          }
+        }
+        return true
+      })
       .sort((first, second) => first.name.localeCompare(second.name))
   }, [events])
 

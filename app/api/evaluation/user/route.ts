@@ -18,7 +18,7 @@ export async function GET() {
     .eq("evaluation_open", true)
     .lt("evaluation_deadline", today)
 
-  const [{ data: openEvents, error: eventError }, { data: criteria, error: criteriaError }] =
+  const [{ data: openEvents, error: eventError }, { data: criteria, error: criteriaError }, { data: rsvps, error: rsvpError }] =
     await Promise.all([
       supabaseAdmin
         .from("events")
@@ -30,16 +30,24 @@ export async function GET() {
         .select("id, criteria_description, criteria_type")
         .order("criteria_type")
         .order("criteria_description"),
+      supabaseAdmin
+        .from("event_rsvp")
+        .select("event_id")
+        .eq("user_id", userId)
+        .eq("status", "accepted")
     ])
 
-  if (eventError || criteriaError) {
+  if (eventError || criteriaError || rsvpError) {
     return Response.json(
-      { error: eventError?.message || criteriaError?.message || "Unable to load evaluation." },
+      { error: eventError?.message || criteriaError?.message || rsvpError?.message || "Unable to load evaluation." },
       { status: 400 }
     )
   }
 
-  if (!openEvents || openEvents.length === 0) {
+  const acceptedEventIds = new Set((rsvps || []).map(r => r.event_id))
+  const filteredOpenEvents = (openEvents || []).filter(e => acceptedEventIds.has(e.id))
+
+  if (filteredOpenEvents.length === 0) {
     return Response.json({
       openEvents: [],
       criteria: criteria ?? [],
@@ -48,7 +56,7 @@ export async function GET() {
     })
   }
 
-  const eventIds = openEvents.map((event) => event.id)
+  const eventIds = filteredOpenEvents.map((event) => event.id)
 
   const { data: responses, error: responseError } = await supabaseAdmin
     .from("response")
@@ -76,7 +84,7 @@ export async function GET() {
   }
 
   return Response.json({
-    openEvents: openEvents.map((event) => ({
+    openEvents: filteredOpenEvents.map((event) => ({
       ...event,
       id: String(event.id),
     })),

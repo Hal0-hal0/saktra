@@ -1,8 +1,22 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal, Users } from "lucide-react"
+import { ArrowUpDown, MoreHorizontal, Users, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
+import { useState } from "react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import EventDrawer from "../eventsPage/event-drawer"
 import { ParticipantsModal } from "../eventsPage/participants-modal"
 import {
@@ -14,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { OverviewKeyRoundedIcon } from "@/components/icons/material-symbols-overview-key-rounded"
+import { TruncatedCell } from "@/components/ui/truncated-cell"
 
 export type EventHistoryItem = {
   id: string
@@ -29,6 +44,29 @@ export type EventHistoryItem = {
 }
 
 function HistoryEventActions({ event }: { event: EventHistoryItem }) {
+  const [open, setOpen] = useState(false)
+
+  const handleDelete = async () => {
+    try {
+      const res = await fetch("/api/delete-event", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: event.id }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to delete event")
+      }
+
+      toast.success("Event deleted successfully")
+      setOpen(false)
+    } catch (error: any) {
+      toast.error(error.message)
+    }
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -54,6 +92,32 @@ function HistoryEventActions({ event }: { event: EventHistoryItem }) {
           </DropdownMenuItem>
         </ParticipantsModal>
 
+        <DropdownMenuSeparator />
+        
+        <AlertDialog open={open} onOpenChange={setOpen}>
+          <AlertDialogTrigger asChild>
+            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+              <Trash2 className="size-4" />
+              <span>Delete Event</span>
+            </DropdownMenuItem>
+          </AlertDialogTrigger>
+          <AlertDialogContent size="sm">
+            <AlertDialogHeader>
+              <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+                <Trash2 />
+              </AlertDialogMedia>
+              <AlertDialogTitle>Delete Event: <span className="font-bold text-destructive">{event.name}</span>?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action is irreversible. It will permanently remove all associated RSVPs and evaluation scores.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
+              <AlertDialogAction variant="destructive" onClick={handleDelete}>Confirm Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -74,7 +138,7 @@ export const historyColumns: ColumnDef<EventHistoryItem>[] = [
     cell: ({ row }) => (
       <EventDrawer eventId={row.original.id} showUpdateButton={false}>
         <button type="button" className="text-left font-medium capitalize hover:underline">
-          {row.original.name}
+          <TruncatedCell content={row.original.name} />
         </button>
       </EventDrawer>
     ),
@@ -84,7 +148,7 @@ export const historyColumns: ColumnDef<EventHistoryItem>[] = [
     header: "Description",
     cell: ({ row }) => {
       const description = row.original.description ?? ""
-      return description.length > 50 ? `${description.slice(0, 50)}...` : description
+      return <TruncatedCell content={description} />
     },
   },
   {
@@ -106,10 +170,12 @@ export const historyColumns: ColumnDef<EventHistoryItem>[] = [
   {
     accessorKey: "location",
     header: "Location",
+    cell: ({ row }) => <TruncatedCell content={row.getValue("location")} />
   },
   {
     accessorKey: "venue",
     header: "Venue",
+    cell: ({ row }) => <TruncatedCell content={row.getValue("venue")} />
   },
   {
     id: "actions",

@@ -6,7 +6,7 @@ export async function DELETE(request:Request) {
 
     const {error} = await supabaseAdmin
     .from('events')
-    .delete ()
+    .update({ is_hidden: true })
     .eq('id', Number(id))
 
     if (error) return Response.json({ error: error.message }, { status: 400 })

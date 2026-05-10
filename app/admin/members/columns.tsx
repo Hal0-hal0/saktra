@@ -11,6 +11,7 @@ import UpdateDrawer from "./update-drawer"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useProfiles } from "./profile-provider"
+import { TruncatedCell } from "@/components/ui/truncated-cell"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,7 +49,7 @@ export const columns: ColumnDef<Payment>[] = [
   {
     accessorKey: "role",
     cell: ({ row }) => {
-      return <span className="capitalize">{row.getValue("role")}</span>
+      return <TruncatedCell className="capitalize" content={row.getValue("role")} />
     },
     header: ({ column }) => {
       return (
@@ -64,6 +65,9 @@ export const columns: ColumnDef<Payment>[] = [
   },
   {
     accessorKey: "email",
+    cell: ({ row }) => {
+      return <TruncatedCell content={row.getValue("email")} />
+    },
     header: ({ column }) => {
       return (
         <Button
@@ -79,17 +83,23 @@ export const columns: ColumnDef<Payment>[] = [
   {
     accessorKey: "user_name",
     header: "Username",
+    cell: ({ row }) => {
+      return <TruncatedCell content={row.getValue("user_name")} />
+    },
   },
   {
     accessorKey: "department",
     header: "Department",
     cell: ({ row }) => {
-      return <span className="capitalize">{row.getValue("department")}</span>
+      return <TruncatedCell className="capitalize" content={row.getValue("department")} />
     }
   },
   {
     accessorKey: "position",
     header: "Position",
+    cell: ({ row }) => {
+      return <TruncatedCell className="capitalize" content={row.getValue("position")} />
+    }
   },
 
   {

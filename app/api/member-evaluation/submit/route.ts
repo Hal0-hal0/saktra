@@ -81,7 +81,7 @@ export async function POST(request: Request) {
         .single(),
       supabaseAdmin
         .from("member_evaluation_cycle")
-        .select("id, evaluation_open, evaluation_deadline")
+        .select("id, evaluation_open, evaluation_deadline, event_id")
         .eq("id", cycleIdNumber)
         .single(),
       supabaseAdmin
@@ -208,6 +208,55 @@ export async function POST(request: Request) {
     action: "submit",
     result: "success",
   })
+
+  // Calculate the average score from this submission (out of 10)
+  const totalScore = answerRows.reduce((sum, row) => sum + (row.rating_value ?? 0), 0)
+  const averageOutOf10 = answerRows.length > 0 ? totalScore / answerRows.length : 0
+  
+  // Scale down to out of 5 for the user_scores table
+  const averageOutOf5 = averageOutOf10 / 2
+
+  // Update or insert into user_scores
+  if (activeCycle?.event_id) {
+    // We first check if a row exists for this user and event
+    const { data: existingScore } = await supabaseAdmin
+      .from("user_scores")
+      .select("id, member_evaluation_score")
+      .eq("user_id", targetUserId)
+      .eq("event_id", activeCycle.event_id)
+      .maybeSingle()
+
+    if (existingScore) {
+      // If it exists, we average the new score with the existing score (or just overwrite? The prompt implies 1 evaluation per member by an executive)
+      // Let's take the average if multiple exist, but usually it's one.
+      const previousScore = existingScore.member_evaluation_score ? Number(existingScore.member_evaluation_score) : averageOutOf5
+      const newScore = (previousScore + averageOutOf5) / 2
+
+      const { error: updateError } = await supabaseAdmin
+        .from("user_scores")
+        .update({ member_evaluation_score: newScore })
+        .eq("id", existingScore.id)
+        
+      if (updateError) {
+        console.error("Failed to update user_scores:", updateError)
+      }
+    } else {
+      // Create new record
+      const { error: insertError } = await supabaseAdmin
+        .from("user_scores")
+        .insert({
+          user_id: targetUserId,
+          event_id: activeCycle.event_id,
+          member_evaluation_score: averageOutOf5,
+        })
+        
+      if (insertError) {
+        console.error("Failed to insert user_scores:", insertError)
+      }
+    }
+  } else {
+    console.warn("No event_id found on activeCycle, skipping user_scores update")
+  }
 
   return Response.json({ success: true })
 }

@@ -1,14 +1,3 @@
-<<<<<<< HEAD
-import React from 'react'
-
-const Events = () => {
-  return (
-    <div>Events</div>
-  )
-}
-
-export default Events
-=======
 'use client'
 
 import { useMemo, useState } from 'react'
@@ -182,4 +171,3 @@ export default function UserEventsPage() {
         </div>
     )
 }
->>>>>>> c0f49fb (Events in User || Events Participants in Admin)

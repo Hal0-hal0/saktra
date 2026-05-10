@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/supabase-client'
+import { toast } from 'sonner'
 
 export type EventStatus = 'accepted' | 'declined' | 'pending'
 
@@ -44,6 +45,7 @@ export function UserEventProvider({ children }: { children: React.ReactNode }) {
         const { data: eventsData } = await supabase
             .from('events')
             .select('*')
+            .eq('is_hidden', false)
             .order('date_start', { ascending: true })
 
         // Fetch this user's RSVPs
@@ -65,7 +67,9 @@ export function UserEventProvider({ children }: { children: React.ReactNode }) {
             (evalData ?? []).map((e) => e.event_id)
         )
 
-        const merged: UserEvent[] = (eventsData ?? []).map((event) => ({
+        const merged: UserEvent[] = (eventsData ?? [])
+            .filter((event) => event.status !== 'done')  // Exclude DONE events
+            .map((event) => ({
             ...event,
             rsvp: rsvpMap.get(event.id) ?? 'pending',
             hasEvaluated: evaluatedSet.has(event.id),
@@ -106,10 +110,17 @@ export function UserEventProvider({ children }: { children: React.ReactNode }) {
     const updateRsvp = async (eventId: string, rsvp: EventStatus) => {
         if (!userId) return
 
-        await supabase.from('event_rsvp').upsert(
-            { user_id: userId, event_id: eventId, status: rsvp },
-            { onConflict: 'user_id,event_id' }
-        )
+        const res = await fetch('/api/update-event-rsvp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId, status: rsvp })
+        })
+
+        const data = await res.json()
+        if (data.error) {
+            toast.error(data.error, { position: 'top-center' })
+            throw new Error(data.error)
+        }
 
         // Optimistic update
         setEvents((prev) =>
