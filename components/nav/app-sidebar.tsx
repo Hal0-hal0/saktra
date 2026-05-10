@@ -36,12 +36,14 @@ const adminNav = [
 const execNav = [
   { title: "Dashboard Exec", url: "/admin", icon: <LayoutDashboardIcon /> },
   { title: "Placeholder", url: "#", icon: <FolderIcon /> },
+  { title: "Events", url: "/users/events", icon: <LayoutDashboardIcon /> },
+  { title: "My Performance", url: "/users/myPerformance", icon: <ChartBarIcon /> },
 ]
 
 const userNav = [
   { title: "Dashboard User", url: "/users", icon: <LayoutDashboardIcon /> },
   { title: "Events", url: "/users/events", icon: <LayoutDashboardIcon /> },
-  { title: "Evaluation", url: "/users/evaluation", icon: <FolderIcon /> },
+  { title: "My Performance", url: "/users/myPerformance", icon: <ChartBarIcon /> },
 ]
 
 const adminOperations = [
@@ -49,6 +51,7 @@ const adminOperations = [
   { name: "Evaluations", url: "/admin/evaluation", icon: <DataCheckIcon /> },
   { name: "Attendance", url: "/admin/attendance", icon: <CheckbookRoundedIcon /> },
   { name: "Membership", url: "/admin/membership", icon: <Groups2Icon /> },
+  { name: "Scores", url: "/admin/scores", icon: <ChartBarIcon /> },
   { name: "Reports", url: "/admin/reportsPage", icon: <FileIcon /> },
 ]
 
@@ -60,6 +63,7 @@ const execOperations = [
 const bodNav = [
   { title: "Dashboard", url: "/users", icon: <LayoutDashboardIcon /> },
   { title: "Evaluation", url: "/users/evaluation", icon: <DataCheckIcon /> },
+  { title: "My Performance", url: "/users/myPerformance", icon: <ChartBarIcon /> },
 ]
 
 const bodOperations = [
@@ -103,8 +107,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   if (roleLoading) return null
 
-  const navItems = role === 'executive' ? execNav : role === 'user' ? userNav : adminNav
-  const operationItems = role === 'executive' ? execOperations : role === 'user' ? userOperations : adminOperations
+  const navItems = role === 'executive' ? execNav : role === 'bod' ? bodNav : role === 'user' ? userNav : adminNav
+  const operationItems = role === 'executive' ? execOperations : role === 'bod' ? bodOperations : role === 'user' ? userOperations : adminOperations
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>

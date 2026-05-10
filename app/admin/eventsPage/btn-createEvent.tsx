@@ -14,7 +14,7 @@ import {
 import { Field, FieldGroup } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from 'sonner'
 import { format } from "date-fns"
 import { ChevronDownIcon } from "lucide-react"
@@ -28,6 +28,8 @@ import {
 import { DiscardChangesAlert } from "@/components/ui/discard-changes-alert"
 import { useUnsavedChangesGuard } from "@/lib/use-unsaved-changes-guard"
 import { EventProvider, useEvent } from "./event-provider"
+import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem } from "@/components/ui/combobox"
+import { supabase } from "@/lib/supabase/supabase-client"
 
 export function ButtonCreateEvent() {
   const [openModal, setOpenModal] = useState(false)
@@ -39,9 +41,20 @@ export function ButtonCreateEvent() {
   const [description, setDescription] = useState('')
   const [location, setLocation] = useState('')
   const [venue, setVenue] = useState('')
+  const [eventChairId, setEventChairId] = useState<string>('')
+  const [vcId, setVcId] = useState<string>('')
   const [submit, setSubmit] = useState(false)
   const [open, setOpen] = useState(false)
   const [openEnd, setOpenEnd] = useState(false)
+  const [profiles, setProfiles] = useState<any[]>([])
+
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      const { data } = await supabase.from('profiles').select('*')
+      setProfiles(data || [])
+    }
+    fetchProfiles()
+  }, [])
 
   const resetForm = () => {
     setOpenModal(false)
@@ -53,6 +66,8 @@ export function ButtonCreateEvent() {
     setDescription('')
     setLocation('')
     setVenue('')
+    setEventChairId('')
+    setVcId('')
     setSubmit(false)
     setOpen(false)
     setOpenEnd(false)
@@ -64,7 +79,9 @@ export function ButtonCreateEvent() {
     location.trim().length > 0 ||
     venue.trim().length > 0 ||
     timeStart !== '10:30:00' ||
-    timeEnd !== '10:30:00'
+    timeEnd !== '10:30:00' ||
+    eventChairId !== '' ||
+    vcId !== ''
 
   const {
     cancelDiscard,
@@ -121,8 +138,9 @@ export function ButtonCreateEvent() {
         location,
         venue,
         time_start: timeStart,
-        time_end: timeEnd
-        
+        time_end: timeEnd,
+        event_chair_id: eventChairId || null,
+        vc_id: vcId || null,
       })
     })
     const { error } = await res.json()
@@ -182,6 +200,44 @@ export function ButtonCreateEvent() {
               onChange={(e) => setVenue(e.target.value)}
             />
           </Field>
+          <div className="flex flex-row gap-5">
+            <Field>
+              <Label>Event Chair (Optional)</Label>
+              <Combobox value={eventChairId} onValueChange={(val) => setEventChairId(val || "")}>
+                <ComboboxInput
+                  placeholder="Select event chair..."
+                  showClear
+                />
+                <ComboboxContent>
+                  <ComboboxList>
+                    {profiles.map((profile) => (
+                      <ComboboxItem key={profile.id} value={profile.user_id}>
+                        {profile.user_name}
+                      </ComboboxItem>
+                    ))}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
+            </Field>
+            <Field>
+              <Label>Vice Chair (Optional)</Label>
+              <Combobox value={vcId} onValueChange={(val) => setVcId(val || "")}>
+                <ComboboxInput
+                  placeholder="Select vice chair..."
+                  showClear
+                />
+                <ComboboxContent>
+                  <ComboboxList>
+                    {profiles.map((profile) => (
+                      <ComboboxItem key={profile.id} value={profile.user_id}>
+                        {profile.user_name}
+                      </ComboboxItem>
+                    ))}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
+            </Field>
+          </div>
           <div className="flex flex-row gap-5">
             <Field>
               <Label>Date</Label>

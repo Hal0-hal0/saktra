@@ -1,6 +1,6 @@
 import React from "react"
-import { AppSidebar } from "@/components/comp-admin/app-sidebar"
-import { SiteHeader } from "@/components/comp-admin/site-header"
+import { AppSidebar } from "@/components/nav/app-sidebar"
+import { SiteHeader } from "@/components/nav/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"  
 import { Toaster } from "@/components/ui/sonner"
