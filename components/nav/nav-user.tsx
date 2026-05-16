@@ -41,35 +41,37 @@ export function NavUser({
 
 
   const logout = async () => {
-        await supabase.auth.signOut();
-        router.push('/login');
-      }
+    await supabase.auth.signOut();
+    router.push('/login');
+  }
 
-  const [userDetails,setUser] = useState<any>(null) 
+  const [userDetails, setUser] = useState<any>(null)
 
-  const getUser = async() => {
-    const {data:user} = await supabase.auth.getClaims();
+  const getUser = async () => {
+    const { data: user } = await supabase.auth.getClaims();
 
-    const {data:details} = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('user_id', user?.claims?.sub)
-    .single()
+    const { data: details } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', user?.claims?.sub)
+      .single()
     setUser(details)
   }
 
-  useEffect (() => {
+  const profilePath = userDetails?.role === 'admin' ? '/admin/profile' : '/users/profile'
+
+  useEffect(() => {
     getUser()
 
     const channel = supabase
-    .channel('profile')
-    .on('postgres_changes',
-      {event:'*', schema:'public', table:'profiles'},
-      () => {
-        getUser() //refetch when chnages
-      }
-    )
-    .subscribe()
+      .channel('profile')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles' },
+        () => {
+          getUser() //refetch when chnages
+        }
+      )
+      .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
@@ -84,7 +86,7 @@ export function NavUser({
             <SidebarMenuButton
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground bg-muted border"
-            
+
             >
               <Avatar className="h-8 w-8 rounded-lg grayscale">
                 <AvatarImage src={user.avatar} alt={user.name} />
@@ -122,7 +124,7 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <Link href={'/admin/profile'}>
+              <Link href={profilePath}>
                 <DropdownMenuItem>
                   <CircleUserRoundIcon />
                   Profile
