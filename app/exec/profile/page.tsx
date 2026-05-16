@@ -29,7 +29,7 @@ type Profile = {
   avatar_url: string | null;
 };
 
-export default function UserProfilePage() {
+export default function ExecProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,9 +78,6 @@ export default function UserProfilePage() {
       birthday: user?.birthday ?? '',
       home_address: user?.home_address ?? '',
       school: user?.school ?? '',
-      department: user?.department ?? '',
-      role_title: user?.role_title ?? '',
-      year_joined: user?.year_joined ?? '',
       contact_person: user?.contact_person ?? '',
       contact_person_relationship: user?.contact_person_relationship ?? '',
       contact_person_phone: user?.contact_person_phone ?? '',
@@ -181,9 +178,6 @@ export default function UserProfilePage() {
                 { label: 'Birthday', key: 'birthday', type: 'date' },
                 { label: 'Home Address', key: 'home_address' },
                 { label: 'School', key: 'school' },
-                { label: 'Department', key: 'department' },
-                { label: 'Position / Title', key: 'role_title' },
-                { label: 'Year Joined', key: 'year_joined', type: 'number' },
                 { label: 'Contact Person', key: 'contact_person' },
                 { label: 'Relationship', key: 'contact_person_relationship' },
                 { label: 'Contact Person No.', key: 'contact_person_phone' },
