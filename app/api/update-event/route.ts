@@ -13,6 +13,8 @@ export async function PATCH(request: Request) {
     date_end: dateEnd,
     time_start: timeStart,
     time_end: timeEnd,
+    event_chair_id: eventChairId,
+    vc_id: vcId,
 } = await request.json()
 
   const {error: updateEvent} = await supabaseAdmin
@@ -26,6 +28,8 @@ export async function PATCH(request: Request) {
     date_end: dateEnd,
     time_start: timeStart,
     time_end: timeEnd,
+    event_chair_id: eventChairId || null,
+    vc_id: vcId || null,
   }) 
   .eq('id', id)
 

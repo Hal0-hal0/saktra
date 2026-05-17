@@ -56,7 +56,7 @@ export async function GET() {
         .order("criteria_description"),
       supabaseAdmin
         .from("member_evaluation_cycle")
-        .select("id, title, evaluation_open, evaluation_deadline, created_at, started_at")
+        .select("id, title, evaluation_open, evaluation_deadline, created_at, started_at, event_id")
         .eq("evaluation_open", true)
         .order("created_at", { ascending: false })
     ])
@@ -91,8 +91,24 @@ export async function GET() {
     })
   }
 
-  const targets = filterEvaluationTargets(evaluator as ProfileRow, (profiles ?? []) as ProfileRow[])
   const activeCycleIds = activeCycles.map((cycle) => cycle.id)
+  const cycleEventIds = activeCycles.map((cycle) => cycle.event_id).filter(Boolean)
+  let allRsvps: { user_id: string; event_id: number }[] = []
+
+  if (cycleEventIds.length > 0) {
+    const { data: rsvps } = await supabaseAdmin
+      .from("event_rsvp")
+      .select("user_id, event_id")
+      .in("event_id", cycleEventIds)
+      .eq("status", "accepted")
+
+    if (rsvps) {
+      allRsvps = rsvps as { user_id: string; event_id: number }[]
+    }
+  }
+
+  const eligibleProfiles = profiles ?? []
+  const targets = filterEvaluationTargets(evaluator as ProfileRow, eligibleProfiles as ProfileRow[])
 
   const { data: responses, error: responsesError } = await supabaseAdmin
     .from("member_evaluation_response")
@@ -153,5 +169,6 @@ export async function GET() {
       member_response_id: String(answer.member_response_id),
       criteria_id: String(answer.criteria_id),
     })),
+    rsvps: allRsvps,
   })
 }

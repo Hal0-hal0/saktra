@@ -18,6 +18,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { supabase } from "@/lib/supabase/supabase-client"
 
 type MemberProfile = {
@@ -94,18 +101,25 @@ export default function MemberEvaluationSection() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [completedEvents, setCompletedEvents] = useState<{id: number, name: string}[]>([])
+  const [selectedEventId, setSelectedEventId] = useState<string>("")
 
   useEffect(() => {
     let mounted = true
 
     const fetchData = async () => {
       setLoading(true)
-      const [profilesResult, cyclesResponse] = await Promise.all([
+      const [profilesResult, cyclesResponse, eventsResult] = await Promise.all([
         supabase
           .from("profiles")
           .select("user_id, user_name, email, role, status, department, position")
           .order("user_name"),
         fetch("/api/member-evaluation/admin", { cache: "no-store" }),
+        supabase
+          .from("events")
+          .select("id, name")
+          .eq("status", "done")
+          .order("name")
       ])
 
       if (!mounted) return
@@ -123,6 +137,7 @@ export default function MemberEvaluationSection() {
 
       setProfiles(nextProfiles)
       setCycles(cyclesData.cycles ?? [])
+      setCompletedEvents(eventsResult.data ?? [])
       setSelectedMemberId((current) => current || evaluableProfiles[0]?.user_id || "")
       setLoading(false)
     }
@@ -135,16 +150,19 @@ export default function MemberEvaluationSection() {
   }, [refreshKey])
 
   const startMemberEvaluation = async () => {
-    if (!cycleTitle.trim() || !evaluationDeadline) {
-      toast.error("Add a title and close date before starting.", { position: "top-center" })
+    if (!selectedEventId || !evaluationDeadline) {
+      toast.error("Select an event and close date before starting.", { position: "top-center" })
       return
     }
+
+    const selectedEvent = completedEvents.find(e => String(e.id) === selectedEventId)
+    const titleToUse = selectedEvent ? `Member Evaluation: ${selectedEvent.name}` : "Member Evaluation"
 
     setActionLoading(true)
     const res = await fetch("/api/member-evaluation/open", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: cycleTitle, evaluationDeadline }),
+      body: JSON.stringify({ title: titleToUse, evaluationDeadline, eventId: selectedEventId }),
     })
     const data = await res.json()
     setActionLoading(false)
@@ -155,7 +173,7 @@ export default function MemberEvaluationSection() {
     }
 
     setStartOpen(false)
-    setCycleTitle("Member Evaluation")
+    setSelectedEventId("")
     setEvaluationDeadline("")
     setRefreshKey((value) => value + 1)
     toast.success("Member evaluation started.", { position: "top-center" })
@@ -282,8 +300,23 @@ export default function MemberEvaluationSection() {
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <p className="text-sm font-medium">Evaluation title</p>
-                    <Input value={cycleTitle} onChange={(event) => setCycleTitle(event.target.value)} />
+                    <p className="text-sm font-medium">Select Completed Event</p>
+                    <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an event..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {completedEvents.length === 0 ? (
+                          <SelectItem value="none" disabled>No completed events</SelectItem>
+                        ) : (
+                          completedEvents.map((event) => (
+                            <SelectItem key={event.id} value={String(event.id)}>
+                              {event.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Close date</p>
@@ -295,7 +328,7 @@ export default function MemberEvaluationSection() {
                   <Button type="button" variant="outline" onClick={() => setStartOpen(false)}>
                     Cancel
                   </Button>
-                  <Button type="button" onClick={startMemberEvaluation} disabled={actionLoading || !cycleTitle.trim() || !evaluationDeadline}>
+                  <Button type="button" onClick={startMemberEvaluation} disabled={actionLoading || !selectedEventId || !evaluationDeadline}>
                     {actionLoading && <Spinner data-icon="inline-start" />}
                     Start Evaluation
                   </Button>

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import EventDrawer from "./event-drawer"
 import { ParticipantsModal } from "./participants-modal"
+import { TruncatedCell } from "@/components/ui/truncated-cell"
 
 import {
   AlertDialog,
@@ -179,7 +180,7 @@ export const columns: ColumnDef<Event>[] = [
   {
     accessorKey: "name",
     cell: ({ row }) => {
-      return <span className="capitalize">{row.getValue("name")}</span>
+      return <TruncatedCell className="capitalize" content={row.getValue("name")} />
     },
     header: ({ column }) => {
       return (
@@ -197,7 +198,7 @@ export const columns: ColumnDef<Event>[] = [
     accessorKey: "description",
     cell: ({ row }) => {
       const description = (row.getValue("description") as string) ?? ''
-      return <span>{description?.length > 50 ? description.slice(0, 50) + '...' : description}</span>
+      return <TruncatedCell content={description} />
     },
     header: ({ column }) => {
       return (
@@ -233,10 +234,12 @@ export const columns: ColumnDef<Event>[] = [
   {
     accessorKey: "location",
     header: "Location",
+    cell: ({ row }) => <TruncatedCell content={row.getValue("location")} />
   },
   {
     accessorKey: "venue",
     header: "Venue",
+    cell: ({ row }) => <TruncatedCell content={row.getValue("venue")} />
   },
   {
     id: "actions",

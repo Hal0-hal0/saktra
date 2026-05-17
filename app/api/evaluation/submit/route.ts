@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Event and answers are required." }, { status: 400 })
   }
 
-  const [{ data: event, error: eventError }, { data: criteria, error: criteriaError }] =
+  const [{ data: event, error: eventError }, { data: criteria, error: criteriaError }, { data: rsvp, error: rsvpError }] =
     await Promise.all([
       supabaseAdmin
         .from("events")
@@ -37,10 +37,21 @@ export async function POST(request: Request) {
         .from("event_eval_criteria")
         .select("id")
         .order("id"),
+      supabaseAdmin
+        .from("event_rsvp")
+        .select("status")
+        .eq("event_id", eventIdNumber)
+        .eq("user_id", userId)
+        .maybeSingle(),
     ])
 
   if (eventError || !event) {
     return Response.json({ error: "Event not found." }, { status: 404 })
+  }
+
+  // Check if user has ACCEPTED the event
+  if (!rsvp || rsvp.status !== 'accepted') {
+    return Response.json({ error: "Only members who accepted this event can submit evaluations." }, { status: 403 })
   }
 
   if (!event.evaluation_open) {

@@ -35,6 +35,8 @@ type EventDetails = {
   description: string
   location: string
   venue: string
+  event_chair_id?: string | null
+  vc_id?: string | null
 }
 
 const formatEventDate = (value?: string) => {
@@ -77,7 +79,7 @@ const EventDrawer = ({
   eventId: string
   showUpdateButton?: boolean
 }) => {
-  const { events = [] } = useEvent()
+  const { events = [], profiles = [] } = useEvent()
   const selectedEvent = (events as EventDetails[]).find((event) => event.id === eventId)
 
   if (!selectedEvent) {
@@ -102,6 +104,14 @@ const EventDrawer = ({
       : `${formatEventDate(selectedEvent.date_start)} to ${formatEventDate(selectedEvent.date_end)}`
 
   const eventTimeSummary = `${formatEventTime(selectedEvent.time_start)} to ${formatEventTime(selectedEvent.time_end)}`
+
+  const chairName = selectedEvent.event_chair_id 
+    ? profiles.find((p: any) => p.user_id === selectedEvent.event_chair_id)?.user_name || "Unknown"
+    : "Not assigned"
+    
+  const vcName = selectedEvent.vc_id
+    ? profiles.find((p: any) => p.user_id === selectedEvent.vc_id)?.user_name || "Unknown"
+    : "Not assigned"
 
   return (
     <Drawer direction="left">
@@ -156,6 +166,28 @@ const EventDrawer = ({
               <DetailRow
                 label="Venue"
                 value={selectedEvent.venue || "Not set"}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="size-4" />
+                Leadership
+              </CardTitle>
+              <CardDescription>
+                Event Chair and Vice Chair assignments.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <DetailRow
+                label="Event Chair"
+                value={chairName}
+              />
+              <DetailRow
+                label="Vice Chair"
+                value={vcName}
               />
             </CardContent>
           </Card>

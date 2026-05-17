@@ -72,6 +72,7 @@ type MemberEvaluationPayload = {
   criteria: Criteria[]
   responses: MemberResponse[]
   answers: Answer[]
+  rsvps: { user_id: string; event_id: number }[]
 }
 
 type ErrorBoundaryState = {
@@ -138,6 +139,7 @@ export default function MemberEvaluationList() {
   const [criteria, setCriteria] = useState<Criteria[]>([])
   const [responses, setResponses] = useState<MemberResponse[]>([])
   const [allAnswers, setAllAnswers] = useState<Answer[]>([])
+  const [rsvps, setRsvps] = useState<{ user_id: string; event_id: number }[]>([])
   const [selectedTargetId, setSelectedTargetId] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
   const [draftAnswersByTarget, setDraftAnswersByTarget] = useState<Record<string, Record<string, Answer>>>({})
@@ -167,6 +169,7 @@ export default function MemberEvaluationList() {
       setCriteria(data.criteria ?? [])
       setResponses(data.responses ?? [])
       setAllAnswers(data.answers ?? [])
+      setRsvps(data.rsvps ?? [])
       setSelectedTargetId(data.targets?.[0]?.user_id ?? "")
       setLoading(false)
     }
@@ -174,14 +177,34 @@ export default function MemberEvaluationList() {
     fetchData()
   }, [])
 
-  const visibleTargets = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase()
+  const selectedTarget = useMemo(
+    () => targets.find((target) => target.user_id === selectedTargetId) ?? null,
+    [selectedTargetId, targets]
+  )
 
-    if (!query) {
-      return targets
+  const selectedCycle = useMemo(
+    () => activeCycles.find((cycle) => cycle.id === selectedCycleId) ?? null,
+    [activeCycles, selectedCycleId]
+  )
+
+  const visibleTargets = useMemo(() => {
+    // 1. Filter by RSVP for the selected cycle's event
+    let filtered = targets
+
+    if (selectedCycle?.event_id) {
+      const attendeeIds = new Set(
+        rsvps
+          .filter((r) => String(r.event_id) === String(selectedCycle.event_id))
+          .map((r) => r.user_id)
+      )
+      filtered = targets.filter((t) => attendeeIds.has(t.user_id))
     }
 
-    return targets.filter((target) => {
+    // 2. Filter by Search Query
+    const query = searchTerm.trim().toLowerCase()
+    if (!query) return filtered
+
+    return filtered.filter((target) => {
       const searchable = [
         target.user_name,
         target.email,
@@ -195,17 +218,7 @@ export default function MemberEvaluationList() {
 
       return searchable.includes(query)
     })
-  }, [searchTerm, targets])
-
-  const selectedTarget = useMemo(
-    () => targets.find((target) => target.user_id === selectedTargetId) ?? null,
-    [selectedTargetId, targets]
-  )
-
-  const selectedCycle = useMemo(
-    () => activeCycles.find((cycle) => cycle.id === selectedCycleId) ?? null,
-    [activeCycles, selectedCycleId]
-  )
+  }, [searchTerm, targets, selectedCycle, rsvps])
 
   const selectedResponse = useMemo(
     () => responses.find((response) => response.cycle_id === selectedCycleId && response.target_user_id === selectedTargetId) ?? null,

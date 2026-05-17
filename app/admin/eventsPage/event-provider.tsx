@@ -8,14 +8,19 @@ const EventContext = createContext<any>(null)
 
 export function EventProvider({ children }: { children: React.ReactNode }) {
   const [events, setEvents] = useState<any[]>([])
-  const [loading, setLoading] = useState (true)
+  const [profiles, setProfiles] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
   const fetchEvents = async () => {
-    const { data } = await supabase.from('events').select('*')
+    const { data } = await supabase.from('events').select('*').eq('is_hidden', false)
     setEvents(data || [])
+    
+    const { data: profilesData } = await supabase.from('profiles').select('*')
+    setProfiles(profilesData || [])
+    
     setLoading(false)
   }
-  console.log('Events Data:', events )
+  console.log('Events Data:', events)
 
 useEffect(() => {
   fetchEvents()
@@ -40,7 +45,7 @@ useEffect(() => {
 }, [])
 
   return (
-    <EventContext.Provider value={{events }}>
+    <EventContext.Provider value={{events, profiles}}>
       {loading ? <SkeletonMembers/> : children }
     </EventContext.Provider>
   )
