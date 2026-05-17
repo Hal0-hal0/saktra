@@ -61,6 +61,7 @@ type MemberEvaluationCycle = {
   evaluation_deadline: string | null
   created_at: string
   started_at: string
+  event_id?: number | null
 }
 
 type MemberEvaluationPayload = {

@@ -29,7 +29,7 @@ type Profile = {
   avatar_url: string | null;
 };
 
-export default function UserProfilePage() {
+export default function ExecProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,9 +78,6 @@ export default function UserProfilePage() {
       birthday: user?.birthday ?? '',
       home_address: user?.home_address ?? '',
       school: user?.school ?? '',
-      department: user?.department ?? '',
-      role_title: user?.role_title ?? '',
-      year_joined: user?.year_joined ?? '',
       contact_person: user?.contact_person ?? '',
       contact_person_relationship: user?.contact_person_relationship ?? '',
       contact_person_phone: user?.contact_person_phone ?? '',
@@ -150,40 +147,11 @@ export default function UserProfilePage() {
 
   if (loading) {
     return (
-      <div>
-      {!loading ? (
-        <>
-          <h1 className='font-bold text-4xl mb-4'>Profile</h1>
-          <div className="space-y-2">
-            <h3><span className="font-semibold">Username:</span> {user?.user_name}</h3>
-            <h3><span className="font-semibold">Role:</span> <span className="capitalize">{user?.role}</span></h3>
-            <h3><span className="font-semibold">Email:</span> {user?.email}</h3>
-            <h3>
-              <span className="font-semibold">Account Status:</span>{' '}
-              <span className="capitalize">{user?.status}</span>
-            </h3>
-            <h3>
-              <span className="font-semibold">Membership Status:</span>{' '}
-              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                user?.membership_status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-              }`}>
-                {user?.membership_status === 'paid' ? 'Paid' : 'Unpaid'}
-              </span>
-            </h3>
-            {user?.membership_status === 'paid' && user?.membership_expires_at && (
-              <h3>
-                <span className="font-semibold">Membership Expires:</span>{' '}
-                {new Date(user.membership_expires_at).toLocaleDateString()}
-              </h3>
-            )}
-          </div>
-        </>
-        
-      ) : (
-        <SkeletonText/>
-      )}
-        
-
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin" />
+          <p className="text-sm text-zinc-400">Loading profile…</p>
+        </div>
       </div>
     );
   }
@@ -210,9 +178,6 @@ export default function UserProfilePage() {
                 { label: 'Birthday', key: 'birthday', type: 'date' },
                 { label: 'Home Address', key: 'home_address' },
                 { label: 'School', key: 'school' },
-                { label: 'Department', key: 'department' },
-                { label: 'Position / Title', key: 'role_title' },
-                { label: 'Year Joined', key: 'year_joined', type: 'number' },
                 { label: 'Contact Person', key: 'contact_person' },
                 { label: 'Relationship', key: 'contact_person_relationship' },
                 { label: 'Contact Person No.', key: 'contact_person_phone' },

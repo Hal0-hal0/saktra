@@ -9,41 +9,47 @@ export default function Home() {
    const [session, setSession] = useState<any>(undefined);
    const router = useRouter();
 
+  const redirectByProfile = async (session: any) => {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, status, is_setup_complete')
+      .eq('user_id', session.user.id)
+      .single();
+
+    // New users must complete account setup first
+    if (!profile?.is_setup_complete) {
+      router.push('/account-setup');
+      return;
+    }
+
+    if (profile?.status === 'active') {
+      if (profile?.role === 'admin') {
+        router.push('/admin');
+      } else if (profile?.role === 'user') {
+        router.push('/users');
+      } else {
+        router.push('/exec');
+      }
+    } else {
+      router.push('/inactive');
+    }
+  };
+
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session); // store session directly, not data wrapper
+      setSession(session);
       if (session) {
-        console.log("Initial session:", session); // log the session object
-        router.push('/users'); // redirect to /users if session exists
-      }; // redirect to /user if session exists
+        redirectByProfile(session);
+      }
     });
 
     // Listen for auth state changes (login/logout)
-    const { data: { subscription} } = supabase.auth.onAuthStateChange(async(_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
-      console.log("Initial session:", session); // log the session object
       if (session) {
-        const {data:profile,error} = await supabase
-        .from('profiles')
-        .select('role, status')
-        .eq('user_id', session.user.id)
-        .single()
-
-        if (profile?.status === 'active') {
-          if(profile?.role === 'admin') {
-            router.push('/admin'); // redirect to /admin if user is admin
-          } else if(profile?.role === 'user') {
-            router.push('/users'); // redirect to /users if user is not admin
-          } else {
-            router.push('/exec'); // redirect to /exec if user is not admin or user
-          }
-        } else {
-          router.push('/inactive')
-        }
-
-        
-      } // redirect to /users on login
+        await redirectByProfile(session);
+      }
     });
 
     return () => subscription.unsubscribe();
