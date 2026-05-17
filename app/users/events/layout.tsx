@@ -7,3 +7,4 @@ export default function UserEventsLayout({
 }) {
     return <UserEventProvider>{children}</UserEventProvider>
 }
+
