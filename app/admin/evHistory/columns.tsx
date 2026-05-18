@@ -4,19 +4,7 @@ import { ColumnDef } from "@tanstack/react-table"
 import { ArrowUpDown, MoreHorizontal, Users, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { useState } from "react"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogMedia,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+import { DeleteConfirmDialog } from "@/components/admin/delete-confirm-dialog"
 import EventDrawer from "../eventsPage/event-drawer"
 import { ParticipantsModal } from "../eventsPage/participants-modal"
 import {
@@ -44,27 +32,16 @@ export type EventHistoryItem = {
 }
 
 function HistoryEventActions({ event }: { event: EventHistoryItem }) {
-  const [open, setOpen] = useState(false)
-
   const handleDelete = async () => {
-    try {
-      const res = await fetch("/api/delete-event", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: event.id }),
-      })
+    const res = await fetch("/api/delete-event", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: event.id }),
+    })
 
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to delete event")
-      }
-
-      toast.success("Event deleted successfully")
-      setOpen(false)
-    } catch (error: any) {
-      toast.error(error.message)
-    }
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || "Failed to delete event")
+    toast.success("Event deleted successfully")
   }
 
   return (
@@ -93,30 +70,18 @@ function HistoryEventActions({ event }: { event: EventHistoryItem }) {
         </ParticipantsModal>
 
         <DropdownMenuSeparator />
-        
-        <AlertDialog open={open} onOpenChange={setOpen}>
-          <AlertDialogTrigger asChild>
-            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
-              <Trash2 className="size-4" />
-              <span>Delete Event</span>
-            </DropdownMenuItem>
-          </AlertDialogTrigger>
-          <AlertDialogContent size="sm">
-            <AlertDialogHeader>
-              <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
-                <Trash2 />
-              </AlertDialogMedia>
-              <AlertDialogTitle>Delete Event: <span className="font-bold text-destructive">{event.name}</span>?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action is irreversible. It will permanently remove all associated RSVPs and evaluation scores.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
-              <AlertDialogAction variant="destructive" onClick={handleDelete}>Confirm Delete</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+
+        <DeleteConfirmDialog
+          title={<>Delete event <span className="font-bold text-destructive">{event.name}</span>?</>}
+          description="This action is irreversible. It will permanently remove all associated RSVPs and evaluation scores."
+          onConfirm={handleDelete}
+          confirmLabel="Confirm Delete"
+        >
+          <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+            <Trash2 className="size-4" />
+            <span>Delete Event</span>
+          </DropdownMenuItem>
+        </DeleteConfirmDialog>
 
       </DropdownMenuContent>
     </DropdownMenu>

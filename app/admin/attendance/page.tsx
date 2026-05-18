@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import QRCode from "qrcode"
 import { format, parse, isBefore, startOfDay, parseISO } from "date-fns"
-import { QrCode, CalendarDays, Clock3, MapPin } from "lucide-react"
+import { QrCode, CalendarDays, Clock3, MapPin, Copy, ExternalLink } from "lucide-react"
 import { supabase } from "@/lib/supabase/supabase-client"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -61,6 +61,7 @@ const AttendancePage = () => {
   const [loading, setLoading] = useState(true)
   const [selectedEvent, setSelectedEvent] = useState<EventRecord | null>(null)
   const [qrCodeUrl, setQrCodeUrl] = useState("")
+  const [attendUrl, setAttendUrl] = useState("")
   const [qrLoading, setQrLoading] = useState(false)
 
   useEffect(() => {
@@ -115,15 +116,17 @@ const AttendancePage = () => {
     setSelectedEvent(event)
     setQrLoading(true)
     setQrCodeUrl("")
+    setAttendUrl("")
 
     try {
-      const attendanceUrl = `${window.location.origin}/admin/attendance?event=${encodeURIComponent(event.id)}`
-      const imageUrl = await QRCode.toDataURL(attendanceUrl, {
+      const url = `${window.location.origin}/attend/${encodeURIComponent(event.id)}`
+      const imageUrl = await QRCode.toDataURL(url, {
         errorCorrectionLevel: "H",
         margin: 2,
         width: 320,
       })
 
+      setAttendUrl(url)
       setQrCodeUrl(imageUrl)
     } catch {
       toast.error("Unable to generate QR code.", { position: "top-center" })
@@ -132,9 +135,20 @@ const AttendancePage = () => {
     }
   }
 
+  const copyUrl = async () => {
+    if (!attendUrl) return
+    try {
+      await navigator.clipboard.writeText(attendUrl)
+      toast.success("Check-in URL copied", { position: "top-center" })
+    } catch {
+      toast.error("Could not copy URL", { position: "top-center" })
+    }
+  }
+
   const closeDialog = () => {
     setSelectedEvent(null)
     setQrCodeUrl("")
+    setAttendUrl("")
     setQrLoading(false)
   }
 
@@ -219,7 +233,7 @@ const AttendancePage = () => {
               {selectedEvent?.name || "Event QR Code"}
             </DialogTitle>
             <DialogDescription>
-              Scanning this QR code currently redirects the user to the attendance page.
+              Scanning checks the user in to this event and awards them <strong>+10 points</strong>. The URL below is the same one encoded in the QR — open it in another browser to test the flow.
             </DialogDescription>
           </DialogHeader>
 
@@ -242,15 +256,27 @@ const AttendancePage = () => {
                     />
                   </div>
                   <Separator />
-                  <div className="space-y-1 text-sm text-muted-foreground">
-                    <p>
+                  <div className="space-y-2 text-sm">
+                    <p className="text-muted-foreground">
                       <span className="font-medium text-foreground">Event:</span>{" "}
                       {selectedEvent?.name}
                     </p>
-                    <p>
-                      <span className="font-medium text-foreground">Redirect:</span>{" "}
-                      `/admin/attendance?event={selectedEvent?.id}`
-                    </p>
+                    <div className="rounded-lg border bg-background p-3 space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Check-in URL</p>
+                      <p className="break-all font-mono text-xs">{attendUrl}</p>
+                      <div className="flex gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={copyUrl}>
+                          <Copy className="size-3.5" />
+                          Copy
+                        </Button>
+                        <a href={attendUrl} target="_blank" rel="noreferrer">
+                          <Button type="button" variant="outline" size="sm">
+                            <ExternalLink className="size-3.5" />
+                            Open in new tab
+                          </Button>
+                        </a>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ) : (

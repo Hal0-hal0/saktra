@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { DeleteConfirmDialog } from "@/components/admin/delete-confirm-dialog"
 import { Spinner } from "@/components/ui/spinner"
 import { OverviewKeyRoundedIcon } from "@/components/icons/material-symbols-overview-key-rounded"
 
@@ -48,11 +49,9 @@ export type Event = {
 }
 
 function EventActions({ event }: { event: Event }) {
-  const [loading, setloading] = useState(false)
   const [doneLoading, setDoneLoading] = useState(false)
 
   const handleDelete = async () => {
-    setloading(true)
     const res = await fetch('/api/delete-event', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -60,13 +59,7 @@ function EventActions({ event }: { event: Event }) {
     })
 
     const { error } = await res.json()
-    if (error) {
-      toast.error(error)
-      setloading(false)
-      return
-    }
-
-    setloading(false)
+    if (error) throw new Error(error)
     toast.success('Event Deleted Successfully!', { position: "top-center" })
   }
 
@@ -144,32 +137,16 @@ function EventActions({ event }: { event: Event }) {
           </AlertDialogContent>
         </AlertDialog>
 
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-              <DeleteRoundedIcon />
-              <span className="text-destructive">Delete</span>
-            </DropdownMenuItem>
-          </AlertDialogTrigger>
-          <AlertDialogContent size="sm">
-            <AlertDialogHeader>
-              <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
-                <DeleteRoundedIcon />
-              </AlertDialogMedia>
-              <AlertDialogTitle>Do you want to delete this event?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action is irreversible. Once an event is deleted, all of its data will be removed from the database.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
-              <AlertDialogAction variant="destructive" onClick={handleDelete}>
-                {loading && <Spinner />}
-                Confirm
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <DeleteConfirmDialog
+          title={<>Delete event <span className="font-bold">{event.name}</span>?</>}
+          description="This action is irreversible. All RSVPs, attendance and evaluation data for this event will be removed."
+          onConfirm={handleDelete}
+        >
+          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+            <DeleteRoundedIcon />
+            <span className="text-destructive">Delete</span>
+          </DropdownMenuItem>
+        </DeleteConfirmDialog>
 
       </DropdownMenuContent>
     </DropdownMenu>

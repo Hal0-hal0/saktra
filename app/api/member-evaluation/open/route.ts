@@ -16,7 +16,7 @@ async function requireAdmin() {
     .eq("user_id", userId)
     .single()
 
-  if (profile?.role !== "admin") {
+  if (profile?.role !== "admin" && profile?.role !== "bod") {
     return { error: Response.json({ error: "Forbidden" }, { status: 403 }) }
   }
 

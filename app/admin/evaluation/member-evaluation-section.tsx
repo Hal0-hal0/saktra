@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { format } from "date-fns"
-import { Building2, CalendarDays, DoorClosed, PlayCircle, Search, ShieldCheck, Star, UserCheck, UsersRound } from "lucide-react"
+import { Building2, CalendarDays, ChevronDown, ChevronUp, DoorClosed, Eye, PlayCircle, Search, ShieldCheck, Star, UserCheck, UsersRound } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -26,6 +26,34 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { supabase } from "@/lib/supabase/supabase-client"
+import { MemberEvalDetailsModal } from "@/components/admin/member-eval-details-modal"
+
+type CycleSortKey = "date-desc" | "date-asc" | "title-asc" | "title-desc" | "responses-desc" | "responses-asc"
+type EventSortKey = "date-desc" | "date-asc" | "name-asc" | "name-desc"
+type MemberSortKey = "name-asc" | "name-desc" | "role-asc" | "department-asc"
+
+const CYCLE_SORTS: { value: CycleSortKey; label: string }[] = [
+  { value: "date-desc", label: "Date (newest first)" },
+  { value: "date-asc", label: "Date (oldest first)" },
+  { value: "title-asc", label: "Title (A-Z)" },
+  { value: "title-desc", label: "Title (Z-A)" },
+  { value: "responses-desc", label: "Most responses" },
+  { value: "responses-asc", label: "Fewest responses" },
+]
+
+const EVENT_SORTS: { value: EventSortKey; label: string }[] = [
+  { value: "date-desc", label: "Date (newest first)" },
+  { value: "date-asc", label: "Date (oldest first)" },
+  { value: "name-asc", label: "Name (A-Z)" },
+  { value: "name-desc", label: "Name (Z-A)" },
+]
+
+const MEMBER_SORTS: { value: MemberSortKey; label: string }[] = [
+  { value: "name-asc", label: "Name (A-Z)" },
+  { value: "name-desc", label: "Name (Z-A)" },
+  { value: "role-asc", label: "Role" },
+  { value: "department-asc", label: "Department" },
+]
 
 type MemberProfile = {
   user_id: string
@@ -99,10 +127,58 @@ export default function MemberEvaluationSection() {
   const [cycleTitle, setCycleTitle] = useState("Member Evaluation")
   const [evaluationDeadline, setEvaluationDeadline] = useState("")
   const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState(false)
+  // pendingAction keys: "start" | `close:${cycleId}`
+  const [pendingAction, setPendingAction] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [completedEvents, setCompletedEvents] = useState<{id: number, name: string}[]>([])
+  const [completedEvents, setCompletedEvents] = useState<{id: number, name: string, date_start?: string | null, date_end?: string | null}[]>([])
   const [selectedEventId, setSelectedEventId] = useState<string>("")
+  const [closedSort, setClosedSort] = useState<CycleSortKey>("date-desc")
+  const [openSort, setOpenSort] = useState<CycleSortKey>("date-desc")
+  const [eventPickerSort, setEventPickerSort] = useState<EventSortKey>("date-desc")
+  const [memberSort, setMemberSort] = useState<MemberSortKey>("name-asc")
+  const [collapsedClosed, setCollapsedClosed] = useState<Set<string>>(new Set())
+
+  const toggleClosedCollapse = (id: string) => {
+    setCollapsedClosed((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const sortCycles = (list: MemberEvaluationCycle[], key: CycleSortKey) => {
+    const copy = [...list]
+    switch (key) {
+      case "date-desc": return copy.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))
+      case "date-asc": return copy.sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? ""))
+      case "title-asc": return copy.sort((a, b) => a.title.localeCompare(b.title))
+      case "title-desc": return copy.sort((a, b) => b.title.localeCompare(a.title))
+      case "responses-desc": return copy.sort((a, b) => b.response_count - a.response_count)
+      case "responses-asc": return copy.sort((a, b) => a.response_count - b.response_count)
+    }
+  }
+
+  const sortPickerEvents = <T extends { name: string; date_start?: string | null }>(list: T[], key: EventSortKey): T[] => {
+    const copy = [...list]
+    switch (key) {
+      case "date-desc": return copy.sort((a, b) => (b.date_start ?? "").localeCompare(a.date_start ?? ""))
+      case "date-asc": return copy.sort((a, b) => (a.date_start ?? "").localeCompare(b.date_start ?? ""))
+      case "name-asc": return copy.sort((a, b) => a.name.localeCompare(b.name))
+      case "name-desc": return copy.sort((a, b) => b.name.localeCompare(a.name))
+    }
+  }
+
+  const sortMembers = (list: MemberProfile[], key: MemberSortKey) => {
+    const copy = [...list]
+    const nameFor = (p: MemberProfile) => (p.user_name && p.user_name !== "null" ? p.user_name : p.email ?? "")
+    switch (key) {
+      case "name-asc": return copy.sort((a, b) => nameFor(a).localeCompare(nameFor(b)))
+      case "name-desc": return copy.sort((a, b) => nameFor(b).localeCompare(nameFor(a)))
+      case "role-asc": return copy.sort((a, b) => (a.role ?? "").localeCompare(b.role ?? ""))
+      case "department-asc": return copy.sort((a, b) => (a.department ?? "").localeCompare(b.department ?? ""))
+    }
+  }
 
   useEffect(() => {
     let mounted = true
@@ -117,8 +193,9 @@ export default function MemberEvaluationSection() {
         fetch("/api/member-evaluation/admin", { cache: "no-store" }),
         supabase
           .from("events")
-          .select("id, name")
+          .select("id, name, date_start, date_end")
           .eq("status", "done")
+          .eq("is_hidden", false)
           .order("name")
       ])
 
@@ -158,14 +235,14 @@ export default function MemberEvaluationSection() {
     const selectedEvent = completedEvents.find(e => String(e.id) === selectedEventId)
     const titleToUse = selectedEvent ? `Member Evaluation: ${selectedEvent.name}` : "Member Evaluation"
 
-    setActionLoading(true)
+    setPendingAction("start")
     const res = await fetch("/api/member-evaluation/open", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: titleToUse, evaluationDeadline, eventId: selectedEventId }),
     })
     const data = await res.json()
-    setActionLoading(false)
+    setPendingAction(null)
 
     if (!res.ok) {
       toast.error(data.error || "Unable to start member evaluation.", { position: "top-center" })
@@ -180,14 +257,14 @@ export default function MemberEvaluationSection() {
   }
 
   const closeMemberEvaluation = async (cycleId: string) => {
-    setActionLoading(true)
+    setPendingAction(`close:${cycleId}`)
     const res = await fetch("/api/member-evaluation/close", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cycleId }),
     })
     const data = await res.json()
-    setActionLoading(false)
+    setPendingAction(null)
 
     if (!res.ok) {
       toast.error(data.error || "Unable to end member evaluation.", { position: "top-center" })
@@ -290,37 +367,72 @@ export default function MemberEvaluationSection() {
                   Start Member Eval
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="!max-w-6xl">
                 <DialogHeader>
                   <DialogTitle>Start Member Evaluation</DialogTitle>
                   <DialogDescription>
-                    Open a member evaluation round. BOD and Executive Members will only see targets allowed by their role.
+                    Select a completed event to evaluate its attendees. Each cycle is linked to a specific event to ensure accurate targeting.
                   </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Select Completed Event</p>
-                    <Select value={selectedEventId} onValueChange={setSelectedEventId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an event..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {completedEvents.length === 0 ? (
-                          <SelectItem value="none" disabled>No completed events</SelectItem>
-                        ) : (
-                          completedEvents.map((event) => (
-                            <SelectItem key={event.id} value={String(event.id)}>
-                              {event.name}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
+                  <div className="flex flex-wrap items-end justify-between gap-3">
+                    <div className="max-w-xs space-y-2">
+                      <p className="text-sm font-medium">Close date</p>
+                      <Input type="date" value={evaluationDeadline} onChange={(event) => setEvaluationDeadline(event.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Sort by</p>
+                      <Select value={eventPickerSort} onValueChange={(v) => setEventPickerSort(v as EventSortKey)}>
+                        <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {EVENT_SORTS.map((o) => (
+                            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Close date</p>
-                    <Input type="date" value={evaluationDeadline} onChange={(event) => setEvaluationDeadline(event.target.value)} />
+
+                  <div className="max-h-[60vh] overflow-y-auto pr-2">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      {completedEvents.length === 0 ? (
+                        <div className="col-span-full rounded-xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
+                          No completed events are available to start an evaluation.
+                        </div>
+                      ) : (
+                        sortPickerEvents(completedEvents, eventPickerSort).map((event) => {
+                          const active = selectedEventId === String(event.id)
+
+                          return (
+                            <button
+                              key={event.id}
+                              type="button"
+                              className={`rounded-2xl border p-4 text-left transition ${
+                                active
+                                  ? "border-primary bg-primary/8 ring-2 ring-primary/20"
+                                  : "border-border bg-card hover:border-primary/40 hover:bg-muted/40"
+                              }`}
+                              onClick={() => setSelectedEventId(String(event.id))}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="font-medium">{event.name}</p>
+                                  <p className="mt-1 text-sm text-muted-foreground">
+                                    {event.date_start ? format(new Date(event.date_start), "MMMM d, yyyy") : "Date unavailable"}
+                                  </p>
+                                </div>
+                                {active ? <Badge>Selected</Badge> : <Badge variant="outline">Completed</Badge>}
+                              </div>
+                              <div className="mt-4 rounded-xl bg-muted/50 p-3 text-sm">
+                                <p className="text-muted-foreground">Target Group</p>
+                                <p className="mt-1 font-medium text-primary">Event Attendees only</p>
+                              </div>
+                            </button>
+                          )
+                        })
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -328,8 +440,8 @@ export default function MemberEvaluationSection() {
                   <Button type="button" variant="outline" onClick={() => setStartOpen(false)}>
                     Cancel
                   </Button>
-                  <Button type="button" onClick={startMemberEvaluation} disabled={actionLoading || !selectedEventId || !evaluationDeadline}>
-                    {actionLoading && <Spinner data-icon="inline-start" />}
+                  <Button type="button" onClick={startMemberEvaluation} disabled={pendingAction !== null || !selectedEventId || !evaluationDeadline}>
+                    {pendingAction === "start" && <Spinner data-icon="inline-start" />}
                     Start Evaluation
                   </Button>
                 </DialogFooter>
@@ -383,16 +495,31 @@ export default function MemberEvaluationSection() {
       </section>
 
       <section className="space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold">Open Member Evaluation</h2>
-          <p className="text-sm text-muted-foreground">
-            Users can evaluate members only while a member evaluation round is open.
-          </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Open Member Evaluation</h2>
+            <p className="text-sm text-muted-foreground">
+              Users can evaluate members only while a member evaluation round is open.
+            </p>
+          </div>
+          {openCycles.length > 1 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Sort by</p>
+              <Select value={openSort} onValueChange={(v) => setOpenSort(v as CycleSortKey)}>
+                <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CYCLE_SORTS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         {openCycles.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2">
-            {openCycles.map((cycle) => (
+            {sortCycles(openCycles, openSort).map((cycle) => (
               <Card key={cycle.id} className="overflow-hidden border-primary/20 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--primary)/0.08))]">
                 <CardHeader>
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -424,14 +551,20 @@ export default function MemberEvaluationSection() {
                     </div>
                   </div>
                 </CardHeader>
-                <CardFooter className="justify-end">
+                <CardFooter className="justify-end gap-2">
+                  <MemberEvalDetailsModal cycleId={cycle.id} cycleTitle={cycle.title}>
+                    <Button type="button" variant="outline">
+                      <Eye className="size-4" />
+                      See Details
+                    </Button>
+                  </MemberEvalDetailsModal>
                   <Button
                     type="button"
                     variant="destructive"
                     onClick={() => closeMemberEvaluation(cycle.id)}
-                    disabled={actionLoading}
+                    disabled={pendingAction !== null}
                   >
-                    {actionLoading && <Spinner data-icon="inline-start" />}
+                    {pendingAction === `close:${cycle.id}` && <Spinner data-icon="inline-start" />}
                     End Member Eval
                   </Button>
                 </CardFooter>
@@ -446,9 +579,24 @@ export default function MemberEvaluationSection() {
       </section>
 
       <section className="space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold">Closed Member Evaluations</h2>
-          <p className="text-sm text-muted-foreground">Review previous member evaluation rounds.</p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Closed Member Evaluations</h2>
+            <p className="text-sm text-muted-foreground">Review previous member evaluation rounds.</p>
+          </div>
+          {closedCycles.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Sort by</p>
+              <Select value={closedSort} onValueChange={(v) => setClosedSort(v as CycleSortKey)}>
+                <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CYCLE_SORTS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         {closedCycles.length === 0 ? (
@@ -457,32 +605,59 @@ export default function MemberEvaluationSection() {
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {closedCycles.map((cycle) => (
-              <Card key={cycle.id} className="border-border/70">
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <CardTitle>{cycle.title}</CardTitle>
-                      <CardDescription>Closed on {formatCycleDate(cycle.evaluation_deadline)}</CardDescription>
+            {sortCycles(closedCycles, closedSort).map((cycle) => {
+              const isCollapsed = collapsedClosed.has(cycle.id)
+              return (
+                <Card key={cycle.id} className="border-border/70">
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <CardTitle>{cycle.title}</CardTitle>
+                        <CardDescription>Closed on {formatCycleDate(cycle.evaluation_deadline)}</CardDescription>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Badge variant="outline">Closed</Badge>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="size-7 p-0"
+                          aria-label={isCollapsed ? "Expand" : "Collapse"}
+                          onClick={() => toggleClosedCollapse(cycle.id)}
+                        >
+                          {isCollapsed ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
+                        </Button>
+                      </div>
                     </div>
-                    <Badge variant="outline">Closed</Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl bg-muted/50 p-3">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Responses</p>
-                    <p className="mt-1 font-medium">{cycle.response_count}</p>
-                  </div>
-                  <div className="rounded-xl bg-muted/50 p-3">
-                    <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-                      <DoorClosed className="size-4" />
-                      Status
-                    </div>
-                    <p className="mt-1 font-medium">Closed</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardHeader>
+                  {!isCollapsed && (
+                    <>
+                      <CardContent className="grid grid-cols-2 gap-3">
+                        <div className="rounded-xl bg-muted/50 p-3">
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">Responses</p>
+                          <p className="mt-1 font-medium">{cycle.response_count}</p>
+                        </div>
+                        <div className="rounded-xl bg-muted/50 p-3">
+                          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+                            <DoorClosed className="size-4" />
+                            Status
+                          </div>
+                          <p className="mt-1 font-medium">Closed</p>
+                        </div>
+                      </CardContent>
+                      <CardFooter className="justify-end">
+                        <MemberEvalDetailsModal cycleId={cycle.id} cycleTitle={cycle.title}>
+                          <Button type="button" variant="outline">
+                            <Eye className="size-4" />
+                            See Details
+                          </Button>
+                        </MemberEvalDetailsModal>
+                      </CardFooter>
+                    </>
+                  )}
+                </Card>
+              )
+            })}
           </div>
         )}
       </section>
@@ -494,14 +669,24 @@ export default function MemberEvaluationSection() {
               <CardTitle>Members</CardTitle>
               <CardDescription>Select a member to view their evaluation summary.</CardDescription>
             </div>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchTerm}
-                className="pl-9"
-                placeholder="Search members"
-                onChange={(event) => setSearchTerm(event.target.value)}
-              />
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchTerm}
+                  className="pl-9"
+                  placeholder="Search members"
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                />
+              </div>
+              <Select value={memberSort} onValueChange={(v) => setMemberSort(v as MemberSortKey)}>
+                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {MEMBER_SORTS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardHeader>
 
@@ -512,7 +697,7 @@ export default function MemberEvaluationSection() {
               </div>
             ) : (
               <div className="grid gap-3 md:grid-cols-2">
-                {visibleProfiles.map((profile) => {
+                {sortMembers(visibleProfiles, memberSort).map((profile) => {
                   const active = selectedMemberId === profile.user_id
 
                   return (

@@ -16,7 +16,7 @@ async function requireAdmin() {
     .eq("user_id", userId)
     .single()
 
-  if (profile?.role !== "admin") {
+  if (profile?.role !== "admin" && profile?.role !== "bod") {
     return { error: Response.json({ error: "Forbidden" }, { status: 403 }) }
   }
 
@@ -47,6 +47,7 @@ export async function GET(request: Request) {
         .from("events")
         .select("id, name, status, evaluation_open, event_eval_score, date_start, date_end, evaluation_deadline")
         .eq("status", "done")
+        .eq("is_hidden", false)
         .order("name"),
       supabaseAdmin
         .from("event_eval_criteria")

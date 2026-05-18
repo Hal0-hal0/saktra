@@ -7,7 +7,8 @@ import { useProfiles } from './profile-provider'
 export default function CreateUserPage() {
   const {profiles} = useProfiles()
 
-  const adminCount = profiles.filter((p:any) => p.role === 'admin').length
+  // Treat legacy 'admin' role and current 'bod' role as the same group (BOD rename is UI-only).
+  const bodCount = profiles.filter((p:any) => p.role === 'admin' || p.role === 'bod').length
   const userCount = profiles.filter((p:any) => p.role === 'user').length
   const activeCount = profiles.filter((p:any) => p.status === 'active').length
   const inactiveCount = profiles.filter((p:any) => p.status === 'inactive').length
@@ -20,13 +21,13 @@ export default function CreateUserPage() {
         <div className='flex flex-col gap-5 mt-5  xl:flex-row lg:flex-row'>
           <Card size='default' className=' w-full max-w-sm'>
             <CardContent>
-              <h1 className='text-5xl font-semibold'>{adminCount}</h1>
+              <h1 className='text-5xl font-semibold'>{bodCount}</h1>
             </CardContent>
-            <CardHeader> 
+            <CardHeader>
             </CardHeader>
             <CardFooter className='flex flex-col items-start'>
-              <CardTitle className='font-bold'>Admin</CardTitle>
-              <CardDescription>Total active admins in the organization</CardDescription>
+              <CardTitle className='font-bold'>Board of Directors (BOD)</CardTitle>
+              <CardDescription>Total active Board of Directors in the organization</CardDescription>
             </CardFooter>
           </Card>
 

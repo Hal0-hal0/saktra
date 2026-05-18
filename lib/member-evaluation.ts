@@ -57,6 +57,13 @@ export const departmentOptions = [
       "Technicals Officer",
     ],
   },
+  {
+    value: "member",
+    label: "Member (no department)",
+    positions: [
+      "Member",
+    ],
+  },
 ] as const
 
 export const bodPositions = [

@@ -17,6 +17,8 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { DeleteConfirmDialog } from '@/components/admin/delete-confirm-dialog'
+import { RotateCcw, History } from 'lucide-react'
 
 interface MemberScoreSummary {
   user_id: string
@@ -28,6 +30,18 @@ interface MemberScoreSummary {
   scores: any[]
 }
 
+interface ResetLogRow {
+  id: string
+  cycle_id: string
+  cycle_label: string
+  cycle_year: number
+  trigger: 'manual' | 'yearly'
+  triggered_by: string | null
+  archived_rows: number
+  affected_users: number
+  created_at: string
+}
+
 export default function AdminScoresPage() {
   const [summaries, setSummaries] = useState<MemberScoreSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -35,10 +49,34 @@ export default function AdminScoresPage() {
   const [sortBy, setSortBy] = useState('score')
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedMember, setSelectedMember] = useState<MemberScoreSummary | null>(null)
-  
+  const [resetHistory, setResetHistory] = useState<ResetLogRow[]>([])
+  const [historyOpen, setHistoryOpen] = useState(false)
+
   useEffect(() => {
     fetchScores()
+    fetchResetHistory()
   }, [])
+
+  const fetchResetHistory = async () => {
+    try {
+      const res = await fetch('/api/scores/reset', { cache: 'no-store' })
+      const json = await res.json()
+      if (res.ok) setResetHistory(json.resets ?? [])
+    } catch {
+      // non-fatal
+    }
+  }
+
+  const handleResetScores = async () => {
+    const res = await fetch('/api/scores/reset', { method: 'POST' })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json?.error ?? 'Reset failed')
+    toast.success(
+      `Scores reset. Archived ${json.archivedRows} rows for ${json.affectedUsers} users.`,
+      { position: 'top-center' }
+    )
+    await Promise.all([fetchScores(), fetchResetHistory()])
+  }
 
   const fetchScores = async () => {
     setLoading(true)
@@ -144,11 +182,30 @@ export default function AdminScoresPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Member Scores Leaderboard</h1>
-        <p className="text-muted-foreground mt-2">
-          Track and rank members based on their evaluation scores
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Member Scores Leaderboard</h1>
+          <p className="text-muted-foreground mt-2">
+            Scores reset every year. Reset early if needed — the current snapshot is archived to <strong>Scores History</strong>.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={() => setHistoryOpen(true)}>
+            <History className="size-4" />
+            Scores History ({resetHistory.length})
+          </Button>
+          <DeleteConfirmDialog
+            title="Reset all scores now?"
+            description="The current snapshot will be archived to Scores History, all user_scores rows will be deleted, and every user's total score returns to 0. This cannot be undone."
+            confirmLabel="Reset scores"
+            onConfirm={handleResetScores}
+          >
+            <Button type="button" variant="destructive">
+              <RotateCcw className="size-4" />
+              Reset Scores
+            </Button>
+          </DeleteConfirmDialog>
+        </div>
       </div>
 
       <Card>
@@ -262,6 +319,55 @@ export default function AdminScoresPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Scores History Dialog */}
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Scores History</DialogTitle>
+            <DialogDescription>
+              Each row is a snapshot taken when scores were reset.
+            </DialogDescription>
+          </DialogHeader>
+
+          {resetHistory.length === 0 ? (
+            <div className="rounded-xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
+              No resets have occurred yet.
+            </div>
+          ) : (
+            <div className="max-h-[60vh] overflow-y-auto border rounded-lg">
+              <table className="w-full text-sm">
+                <thead className="bg-muted sticky top-0">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">When</th>
+                    <th className="px-4 py-3 text-left font-medium">Label</th>
+                    <th className="px-4 py-3 text-left font-medium">Trigger</th>
+                    <th className="px-4 py-3 text-left font-medium">Rows archived</th>
+                    <th className="px-4 py-3 text-left font-medium">Users affected</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {resetHistory.map((row) => (
+                    <tr key={row.id} className="border-t">
+                      <td className="px-4 py-3 text-sm">
+                        {new Date(row.created_at).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3 font-medium">{row.cycle_label}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant={row.trigger === 'yearly' ? 'default' : 'secondary'}>
+                          {row.trigger}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">{row.archived_rows}</td>
+                      <td className="px-4 py-3">{row.affected_users}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Detailed Member View Dialog */}
       <Dialog open={!!selectedMember} onOpenChange={(open) => !open && setSelectedMember(null)}>

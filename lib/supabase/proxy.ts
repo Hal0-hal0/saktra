@@ -27,7 +27,48 @@ export async function updateSession(request: NextRequest) {
   )
 
   const { data } = await supabase.auth.getClaims()
-  const user = data?.claims 
+  const user = data?.claims
+
+  // Account-setup gate: a signed-in user with is_setup_complete=false must
+  // finish /account-setup before they can navigate anywhere else in the app.
+  // Once complete, they cannot revisit /account-setup either.
+  if (user) {
+    const pathname = request.nextUrl.pathname
+    const isSetupPath = pathname.startsWith('/account-setup')
+    const isPublicPath =
+      pathname.startsWith('/login') ||
+      pathname.startsWith('/auth') ||
+      pathname.startsWith('/api') ||
+      pathname.startsWith('/attend') ||
+      pathname === '/'
+
+    if (!isPublicPath) {
+      const { data: setupProfile } = await supabase
+        .from('profiles')
+        .select('is_setup_complete, role')
+        .eq('user_id', user.sub)
+        .single()
+
+      const isComplete = setupProfile?.is_setup_complete === true
+
+      if (!isComplete && !isSetupPath) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/account-setup'
+        return NextResponse.redirect(url)
+      }
+
+      if (isComplete && isSetupPath) {
+        const url = request.nextUrl.clone()
+        url.pathname =
+          setupProfile?.role === 'admin' || setupProfile?.role === 'bod'
+            ? '/admin'
+            : setupProfile?.role === 'user'
+              ? '/users'
+              : '/exec'
+        return NextResponse.redirect(url)
+      }
+    }
+  }
 
   // block active users from accessing /inactive directly
   if (user && request.nextUrl.pathname.startsWith('/inactive')) {
@@ -39,12 +80,12 @@ export async function updateSession(request: NextRequest) {
 
     if (profile?.status === 'active') {
       const url = request.nextUrl.clone()
-      url.pathname = profile?.role === 'admin' ? '/admin' : '/users'
+      url.pathname = (profile?.role === 'admin' || profile?.role === 'bod') ? '/admin' : '/users'
       return NextResponse.redirect(url)
     }
   }
-   
-  // block admin from accessing /user
+
+  // block BOD/admin from accessing /users
   if (user && request.nextUrl.pathname.startsWith('/users')) {
     const { data: profile } = await supabase
       .from('profiles')
@@ -52,9 +93,9 @@ export async function updateSession(request: NextRequest) {
       .eq('user_id', user.sub)
       .single()
 
-    if (profile?.role === 'admin') {
+    if (profile?.role === 'admin' || profile?.role === 'bod') {
       const url = request.nextUrl.clone()
-      url.pathname = '/admin'  // ← send admin back to /admin
+      url.pathname = '/admin'
       return NextResponse.redirect(url)
     }
   }
@@ -88,9 +129,9 @@ export async function updateSession(request: NextRequest) {
       .eq('user_id', user.sub ?? user.id)
       .single()
 
-    if (!profile || profile.role !== 'admin') {
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'bod')) {
       const url = request.nextUrl.clone()
-      url.pathname = '/users'  
+      url.pathname = '/users'
       return NextResponse.redirect(url)
     }
   }
@@ -100,6 +141,7 @@ export async function updateSession(request: NextRequest) {
     !user &&
     !request.nextUrl.pathname.startsWith('/login') &&
     !request.nextUrl.pathname.startsWith('/auth') &&
+    !request.nextUrl.pathname.startsWith('/attend') &&
     request.nextUrl.pathname !== '/'
   ) {
     const url = request.nextUrl.clone()
