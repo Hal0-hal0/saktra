@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { format } from "date-fns"
-import { CalendarDays, ChartColumnBig, ClipboardCheck, DoorClosed, Eye, RotateCcw } from "lucide-react"
+import { CalendarDays, ChartColumnBig, ChevronDown, ChevronUp, ClipboardCheck, DoorClosed, Eye, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -18,7 +18,46 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { formatCriteriaType } from "@/lib/evaluation"
+
+type SortKey = "date-desc" | "date-asc" | "name-asc" | "name-desc" | "responses-desc" | "responses-asc"
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "date-desc", label: "Date (newest first)" },
+  { value: "date-asc", label: "Date (oldest first)" },
+  { value: "name-asc", label: "Name (A-Z)" },
+  { value: "name-desc", label: "Name (Z-A)" },
+  { value: "responses-desc", label: "Most responses" },
+  { value: "responses-asc", label: "Fewest responses" },
+]
+
+function sortEvents<T extends { name: string; date_start?: string | null; response_count: number }>(
+  list: T[],
+  key: SortKey,
+): T[] {
+  const copy = [...list]
+  switch (key) {
+    case "date-desc":
+      return copy.sort((a, b) => (b.date_start ?? "").localeCompare(a.date_start ?? ""))
+    case "date-asc":
+      return copy.sort((a, b) => (a.date_start ?? "").localeCompare(b.date_start ?? ""))
+    case "name-asc":
+      return copy.sort((a, b) => a.name.localeCompare(b.name))
+    case "name-desc":
+      return copy.sort((a, b) => b.name.localeCompare(a.name))
+    case "responses-desc":
+      return copy.sort((a, b) => b.response_count - a.response_count)
+    case "responses-asc":
+      return copy.sort((a, b) => a.response_count - b.response_count)
+  }
+}
 
 type AdminCriteria = {
   id: string
@@ -99,8 +138,22 @@ export default function EventEvaluationSection() {
   const [evaluationDeadline, setEvaluationDeadline] = useState("")
   const [reopenDeadline, setReopenDeadline] = useState("")
   const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState(false)
+  // pendingAction keys: "open" | "reopen" | `close:${id}`
+  const [pendingAction, setPendingAction] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [freshSort, setFreshSort] = useState<SortKey>("date-desc")
+  const [reopenSort, setReopenSort] = useState<SortKey>("date-desc")
+  const [closedSort, setClosedSort] = useState<SortKey>("date-desc")
+  const [collapsedClosed, setCollapsedClosed] = useState<Set<string>>(new Set())
+
+  const toggleClosedCollapse = (id: string) => {
+    setCollapsedClosed((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -184,14 +237,14 @@ export default function EventEvaluationSection() {
       return
     }
 
-    setActionLoading(true)
+    setPendingAction("open")
     const res = await fetch("/api/evaluation/open", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ eventId: selectedPickerEventId, evaluationDeadline }),
     })
     const data = await res.json()
-    setActionLoading(false)
+    setPendingAction(null)
 
     if (!res.ok) {
       toast.error(data.error || "Unable to open evaluation.", { position: "top-center" })
@@ -211,14 +264,14 @@ export default function EventEvaluationSection() {
       return
     }
 
-    setActionLoading(true)
+    setPendingAction("reopen")
     const res = await fetch("/api/evaluation/reopen", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ eventId: selectedReopenEventId, evaluationDeadline: reopenDeadline }),
     })
     const data = await res.json()
-    setActionLoading(false)
+    setPendingAction(null)
 
     if (!res.ok) {
       toast.error(data.error || "Unable to reopen evaluation.", { position: "top-center" })
@@ -235,14 +288,14 @@ export default function EventEvaluationSection() {
   const closeEvaluation = async () => {
     if (!selectedEventId) return
 
-    setActionLoading(true)
+    setPendingAction(`close:${selectedEventId}`)
     const res = await fetch("/api/evaluation/close", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ eventId: selectedEventId }),
     })
     const data = await res.json()
-    setActionLoading(false)
+    setPendingAction(null)
 
     if (!res.ok) {
       toast.error(data.error || "Unable to end evaluation.", { position: "top-center" })
@@ -284,48 +337,63 @@ export default function EventEvaluationSection() {
                 </DialogHeader>
 
                 <div className="space-y-4">
-                  <div className="max-w-xs space-y-2">
-                    <p className="text-sm font-medium">Close date</p>
-                    <Input type="date" value={evaluationDeadline} onChange={(event) => setEvaluationDeadline(event.target.value)} />
+                  <div className="flex flex-wrap items-end justify-between gap-3">
+                    <div className="max-w-xs space-y-2">
+                      <p className="text-sm font-medium">Close date</p>
+                      <Input type="date" value={evaluationDeadline} onChange={(event) => setEvaluationDeadline(event.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Sort by</p>
+                      <Select value={freshSort} onValueChange={(v) => setFreshSort(v as SortKey)}>
+                        <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {SORT_OPTIONS.map((o) => (
+                            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {freshEvents.length === 0 ? (
-                      <div className="col-span-full rounded-xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
-                        No fresh events are ready to open.
-                      </div>
-                    ) : (
-                      freshEvents.map((event) => {
-                        const active = selectedPickerEventId === event.id
+                  <div className="max-h-[60vh] overflow-y-auto pr-2">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      {freshEvents.length === 0 ? (
+                        <div className="col-span-full rounded-xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
+                          No fresh events are ready to open.
+                        </div>
+                      ) : (
+                        sortEvents(freshEvents, freshSort).map((event) => {
+                          const active = selectedPickerEventId === event.id
 
-                        return (
-                          <button
-                            key={event.id}
-                            type="button"
-                            className={`rounded-2xl border p-4 text-left transition ${
-                              active
-                                ? "border-primary bg-primary/8 ring-2 ring-primary/20"
-                                : "border-border bg-card hover:border-primary/40 hover:bg-muted/40"
-                            }`}
-                            onClick={() => setSelectedPickerEventId(event.id)}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <p className="font-medium">{event.name}</p>
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                  {formatEventDateRange(event.date_start, event.date_end)}
-                                </p>
+                          return (
+                            <button
+                              key={event.id}
+                              type="button"
+                              className={`rounded-2xl border p-4 text-left transition ${
+                                active
+                                  ? "border-primary bg-primary/8 ring-2 ring-primary/20"
+                                  : "border-border bg-card hover:border-primary/40 hover:bg-muted/40"
+                              }`}
+                              onClick={() => setSelectedPickerEventId(event.id)}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="font-medium">{event.name}</p>
+                                  <p className="mt-1 text-sm text-muted-foreground">
+                                    {formatEventDateRange(event.date_start, event.date_end)}
+                                  </p>
+                                </div>
+                                {active ? <Badge>Selected</Badge> : <Badge variant="outline">Fresh</Badge>}
                               </div>
-                              {active ? <Badge>Selected</Badge> : <Badge variant="outline">Fresh</Badge>}
-                            </div>
-                            <div className="mt-4 rounded-xl bg-muted/50 p-3 text-sm">
-                              <p className="text-muted-foreground">Evaluation history</p>
-                              <p className="mt-1 font-medium">No previous evaluation data</p>
-                            </div>
-                          </button>
-                        )
-                      })
-                    )}
+                              <div className="mt-4 rounded-xl bg-muted/50 p-3 text-sm">
+                                <p className="text-muted-foreground">Evaluation history</p>
+                                <p className="mt-1 font-medium">No previous evaluation data</p>
+                              </div>
+                            </button>
+                          )
+                        })
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -333,8 +401,8 @@ export default function EventEvaluationSection() {
                   <Button type="button" variant="outline" onClick={() => setPickerOpen(false)}>
                     Cancel
                   </Button>
-                  <Button type="button" onClick={openEvaluation} disabled={actionLoading || !selectedPickerEventId || !evaluationDeadline}>
-                    {actionLoading && <Spinner data-icon="inline-start" />}
+                  <Button type="button" onClick={openEvaluation} disabled={pendingAction !== null || !selectedPickerEventId || !evaluationDeadline}>
+                    {pendingAction === "open" && <Spinner data-icon="inline-start" />}
                     Open Selected Event
                   </Button>
                 </DialogFooter>
@@ -356,54 +424,69 @@ export default function EventEvaluationSection() {
                 </DialogHeader>
 
                 <div className="space-y-4">
-                  <div className="max-w-xs space-y-2">
-                    <p className="text-sm font-medium">New close date</p>
-                    <Input type="date" value={reopenDeadline} onChange={(event) => setReopenDeadline(event.target.value)} />
+                  <div className="flex flex-wrap items-end justify-between gap-3">
+                    <div className="max-w-xs space-y-2">
+                      <p className="text-sm font-medium">New close date</p>
+                      <Input type="date" value={reopenDeadline} onChange={(event) => setReopenDeadline(event.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Sort by</p>
+                      <Select value={reopenSort} onValueChange={(v) => setReopenSort(v as SortKey)}>
+                        <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {SORT_OPTIONS.map((o) => (
+                            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {closedEvaluations.length === 0 ? (
-                      <div className="col-span-full rounded-xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
-                        No evaluated events are available to reopen.
-                      </div>
-                    ) : (
-                      closedEvaluations.map((event) => {
-                        const active = selectedReopenEventId === event.id
+                  <div className="max-h-[60vh] overflow-y-auto pr-2">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      {closedEvaluations.length === 0 ? (
+                        <div className="col-span-full rounded-xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
+                          No evaluated events are available to reopen.
+                        </div>
+                      ) : (
+                        sortEvents(closedEvaluations, reopenSort).map((event) => {
+                          const active = selectedReopenEventId === event.id
 
-                        return (
-                          <button
-                            key={event.id}
-                            type="button"
-                            className={`rounded-2xl border p-4 text-left transition ${
-                              active
-                                ? "border-primary bg-primary/8 ring-2 ring-primary/20"
-                                : "border-border bg-card hover:border-primary/40 hover:bg-muted/40"
-                            }`}
-                            onClick={() => setSelectedReopenEventId(event.id)}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <p className="font-medium">{event.name}</p>
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                  {formatEventDateRange(event.date_start, event.date_end)}
-                                </p>
+                          return (
+                            <button
+                              key={event.id}
+                              type="button"
+                              className={`rounded-2xl border p-4 text-left transition ${
+                                active
+                                  ? "border-primary bg-primary/8 ring-2 ring-primary/20"
+                                  : "border-border bg-card hover:border-primary/40 hover:bg-muted/40"
+                              }`}
+                              onClick={() => setSelectedReopenEventId(event.id)}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="font-medium">{event.name}</p>
+                                  <p className="mt-1 text-sm text-muted-foreground">
+                                    {formatEventDateRange(event.date_start, event.date_end)}
+                                  </p>
+                                </div>
+                                {active ? <Badge>Selected</Badge> : <Badge variant="outline">Evaluated</Badge>}
                               </div>
-                              {active ? <Badge>Selected</Badge> : <Badge variant="outline">Evaluated</Badge>}
-                            </div>
-                            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                              <div className="rounded-xl bg-muted/50 p-3">
-                                <p className="text-muted-foreground">Votes</p>
-                                <p className="mt-1 font-medium">{event.response_count}</p>
+                              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                                <div className="rounded-xl bg-muted/50 p-3">
+                                  <p className="text-muted-foreground">Votes</p>
+                                  <p className="mt-1 font-medium">{event.response_count}</p>
+                                </div>
+                                <div className="rounded-xl bg-muted/50 p-3">
+                                  <p className="text-muted-foreground">Score</p>
+                                  <p className="mt-1 font-medium">{formatScore(event.event_eval_score)}</p>
+                                </div>
                               </div>
-                              <div className="rounded-xl bg-muted/50 p-3">
-                                <p className="text-muted-foreground">Score</p>
-                                <p className="mt-1 font-medium">{formatScore(event.event_eval_score)}</p>
-                              </div>
-                            </div>
-                          </button>
-                        )
-                      })
-                    )}
+                            </button>
+                          )
+                        })
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -411,8 +494,8 @@ export default function EventEvaluationSection() {
                   <Button type="button" variant="outline" onClick={() => setReopenOpen(false)}>
                     Cancel
                   </Button>
-                  <Button type="button" onClick={reopenEvaluation} disabled={actionLoading || !selectedReopenEventId || !reopenDeadline}>
-                    {actionLoading && <Spinner data-icon="inline-start" />}
+                  <Button type="button" onClick={reopenEvaluation} disabled={pendingAction !== null || !selectedReopenEventId || !reopenDeadline}>
+                    {pendingAction === "reopen" && <Spinner data-icon="inline-start" />}
                     Reopen Selected Event
                   </Button>
                 </DialogFooter>
@@ -486,9 +569,26 @@ export default function EventEvaluationSection() {
           </section>
 
           <section className="space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold">Closed Evaluations</h2>
-              <p className="text-sm text-muted-foreground">Review past evaluation rounds and reopen them from the dedicated reopen flow if needed.</p>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">Closed Evaluations</h2>
+                <p className="text-sm text-muted-foreground">Review past evaluation rounds and reopen them from the dedicated reopen flow if needed.</p>
+              </div>
+              {closedEvaluations.length > 0 && (
+                <div className="flex items-end gap-2">
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Sort by</p>
+                    <Select value={closedSort} onValueChange={(v) => setClosedSort(v as SortKey)}>
+                      <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {SORT_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
             </div>
 
             {closedEvaluations.length === 0 ? (
@@ -497,53 +597,72 @@ export default function EventEvaluationSection() {
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {closedEvaluations.map((event) => (
-                  <Card key={event.id} className="border-border/70 transition hover:-translate-y-0.5 hover:ring-1 hover:ring-primary/20">
-                    <CardHeader className="space-y-2">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <CardTitle>{event.name}</CardTitle>
-                          <CardDescription>{formatEventDateRange(event.date_start, event.date_end)}</CardDescription>
+                {sortEvents(closedEvaluations, closedSort).map((event) => {
+                  const isCollapsed = collapsedClosed.has(event.id)
+                  return (
+                    <Card key={event.id} className="border-border/70 transition hover:-translate-y-0.5 hover:ring-1 hover:ring-primary/20">
+                      <CardHeader className="space-y-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <CardTitle>{event.name}</CardTitle>
+                            <CardDescription>{formatEventDateRange(event.date_start, event.date_end)}</CardDescription>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Badge variant="outline">Closed</Badge>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="size-7 p-0"
+                              aria-label={isCollapsed ? "Expand" : "Collapse"}
+                              onClick={() => toggleClosedCollapse(event.id)}
+                            >
+                              {isCollapsed ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
+                            </Button>
+                          </div>
                         </div>
-                        <Badge variant="outline">Closed</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-2 gap-3">
-                      <div className="rounded-xl bg-muted/50 p-3">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Votes</p>
-                        <p className="mt-1 font-medium">{event.response_count}</p>
-                      </div>
-                      <div className="rounded-xl bg-muted/50 p-3">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Score</p>
-                        <p className="mt-1 font-medium">{formatScore(event.event_eval_score)}</p>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedEventId(event.id)
-                          setDetailsOpen(true)
-                        }}
-                      >
-                        <Eye className="size-4" />
-                        See Details
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedReopenEventId(event.id)
-                          setReopenOpen(true)
-                        }}
-                      >
-                        <RotateCcw className="size-4" />
-                        Reopen
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
+                      </CardHeader>
+                      {!isCollapsed && (
+                        <>
+                          <CardContent className="grid grid-cols-2 gap-3">
+                            <div className="rounded-xl bg-muted/50 p-3">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Votes</p>
+                              <p className="mt-1 font-medium">{event.response_count}</p>
+                            </div>
+                            <div className="rounded-xl bg-muted/50 p-3">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Score</p>
+                              <p className="mt-1 font-medium">{formatScore(event.event_eval_score)}</p>
+                            </div>
+                          </CardContent>
+                          <CardFooter className="justify-end gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedEventId(event.id)
+                                setDetailsOpen(true)
+                              }}
+                            >
+                              <Eye className="size-4" />
+                              See Details
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedReopenEventId(event.id)
+                                setReopenOpen(true)
+                              }}
+                            >
+                              <RotateCcw className="size-4" />
+                              Reopen
+                            </Button>
+                          </CardFooter>
+                        </>
+                      )}
+                    </Card>
+                  )
+                })}
               </div>
             )}
           </section>
@@ -640,8 +759,8 @@ export default function EventEvaluationSection() {
 
           <DialogFooter>
             {selectedEvent?.evaluation_open ? (
-              <Button type="button" variant="destructive" onClick={closeEvaluation} disabled={actionLoading}>
-                {actionLoading && <Spinner data-icon="inline-start" />}
+              <Button type="button" variant="destructive" onClick={closeEvaluation} disabled={pendingAction !== null}>
+                {pendingAction === `close:${selectedEventId}` && <Spinner data-icon="inline-start" />}
                 End Evaluation
               </Button>
             ) : null}

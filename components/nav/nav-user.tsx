@@ -58,7 +58,10 @@ export function NavUser({
     setUser(details)
   }
 
-  const profilePath = userDetails?.role === 'admin' ? '/admin/profile' : '/users/profile'
+  const profilePath =
+    userDetails?.role === 'admin' || userDetails?.role === 'bod'
+      ? '/admin/profile'
+      : '/users/profile'
 
   useEffect(() => {
     getUser()
@@ -88,9 +91,11 @@ export function NavUser({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground bg-muted border"
 
             >
-              <Avatar className="h-8 w-8 rounded-lg grayscale">
-                <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+              <Avatar className="h-8 w-8 rounded-lg">
+                <AvatarImage src={userDetails?.avatar_url ?? user.avatar} alt={userDetails?.user_name ?? user.name} />
+                <AvatarFallback className="rounded-lg">
+                  {(userDetails?.user_name ?? userDetails?.email ?? "U").slice(0, 2).toUpperCase()}
+                </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{userDetails?.user_name}</span>
@@ -110,8 +115,10 @@ export function NavUser({
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                  <AvatarImage src={userDetails?.avatar_url ?? user.avatar} alt={userDetails?.user_name ?? user.name} />
+                  <AvatarFallback className="rounded-lg">
+                    {(userDetails?.user_name ?? userDetails?.email ?? "U").slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{userDetails?.user_name}</span>
@@ -130,14 +137,6 @@ export function NavUser({
                   Profile
                 </DropdownMenuItem>
               </Link>
-              <DropdownMenuItem>
-                <CreditCardIcon />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <BellIcon />
-                Notifications
-              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <LogOutConfirmation>

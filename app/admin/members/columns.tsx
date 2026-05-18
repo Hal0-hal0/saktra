@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal } from "lucide-react"
 import { ArrowUpDown } from "lucide-react"
@@ -21,19 +20,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogMedia,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { Timestamp } from "next/dist/server/lib/cache-handlers/types"
+import { DeleteConfirmDialog } from "@/components/admin/delete-confirm-dialog"
+import { formatEvaluationRole } from "@/lib/member-evaluation"
 export type Payment = {
   user_id: string
   user_name: string
@@ -42,14 +30,14 @@ export type Payment = {
   status: string
   department: string
   position: string
-  created_at: Date
+  created_at: string
 }
 
 export const columns: ColumnDef<Payment>[] = [
   {
     accessorKey: "role",
     cell: ({ row }) => {
-      return <TruncatedCell className="capitalize" content={row.getValue("role")} />
+      return <TruncatedCell content={formatEvaluationRole(row.getValue("role"))} />
     },
     header: ({ column }) => {
       return (
@@ -125,10 +113,33 @@ export const columns: ColumnDef<Payment>[] = [
     },
   },
   {
+    accessorKey: "created_at",
+    sortingFn: "datetime",
+    sortDescFirst: true,
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Date Added
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const raw = row.getValue("created_at") as string | Date | null
+      if (!raw) return <span className="text-muted-foreground">—</span>
+      const date = raw instanceof Date ? raw : new Date(raw)
+      return (
+        <span className="text-sm tabular-nums">
+          {date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "2-digit" })}
+        </span>
+      )
+    },
+  },
+  {
     id: "actions",
     accessorKey: "Actions",
     cell: ({ row }) => {
-      const [open, setOpen] = useState(false)
       const user = row.original
 
       const handleDelete = async () => {
@@ -139,23 +150,19 @@ export const columns: ColumnDef<Payment>[] = [
         })
 
         const { error } = await res.json()
-        if (error) {
-          toast.error(error)
-          return
-        }
+        if (error) throw new Error(error)
         toast.success('User deleted!', { position: "top-center" })
       }
 
-
       return (
-        <DropdownMenu >
-          <DropdownMenuTrigger asChild >
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 p-0">
               <span className="sr-only">Open menu</span>
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" >
+          <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <UpdateDrawer user={user}>
               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
@@ -165,26 +172,16 @@ export const columns: ColumnDef<Payment>[] = [
 
             <DropdownMenuSeparator />
 
-            <AlertDialog open={open} onOpenChange={setOpen}>
-              <AlertDialogTrigger asChild onClick={() => setOpen(true)}>
-                <DropdownMenuItem onSelect={(e) => e.preventDefault()}><DeleteRoundedIcon /><span className="text-destructive">Delete</span></DropdownMenuItem>
-              </AlertDialogTrigger>
-              <AlertDialogContent size="sm">
-                <AlertDialogHeader>
-                  <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
-                    <DeleteRoundedIcon />
-                  </AlertDialogMedia>
-                  <AlertDialogTitle>Do you want to delete this user: <span className="font-bold">{user.email}</span> ?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action is irreversible. Once user is being deleted all it's data will be wiped out in the database.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
-                  <AlertDialogAction variant="destructive" onClick={handleDelete}>Confirm</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <DeleteConfirmDialog
+              title={<>Delete user <span className="font-bold">{user.email}</span>?</>}
+              description="This is irreversible. The account is removed from authentication and all profile data is wiped from the database."
+              onConfirm={handleDelete}
+            >
+              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                <DeleteRoundedIcon />
+                <span className="text-destructive">Delete</span>
+              </DropdownMenuItem>
+            </DeleteConfirmDialog>
           </DropdownMenuContent>
         </DropdownMenu>
       )

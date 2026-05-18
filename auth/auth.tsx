@@ -14,9 +14,8 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
-import { sign } from "crypto";
-import css from "styled-jsx/css";
 
 export function Auth() {
   const [email, setEmail] = useState("");
@@ -89,9 +88,8 @@ export function Auth() {
                   Forgot your password?
                 </a>
               </div>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 onChange={(e:ChangeEvent<HTMLInputElement>) =>
                   setPassword(e.target.value)
                 }

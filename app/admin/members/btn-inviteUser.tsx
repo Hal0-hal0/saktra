@@ -24,6 +24,8 @@ import { useState } from "react"
 import { toast } from 'sonner'
 import { DiscardChangesAlert } from "@/components/ui/discard-changes-alert"
 import { useUnsavedChangesGuard } from "@/lib/use-unsaved-changes-guard"
+import { ConfirmActionDialog } from "@/components/admin/confirm-action-dialog"
+import { UserPlus2Icon } from "lucide-react"
 import { bodPositions, departmentOptions } from "@/lib/member-evaluation"
 
 
@@ -80,62 +82,53 @@ export function ButtonInviteUser() {
     setPassword(username ? `${username}-${year}` : '')
   }
 
+  const validate = (): string | null => {
+    if (!email || !selectedRole || !password) return 'Please fill in all fields'
+    if ((isExecutiveInvite || isMemberInvite) && !department) return 'Please select a department.'
+    if (isMemberInvite && !position) return 'Please select a position.'
+    if (isBodInvite && !bodPosition) return 'Please select a BOD position.'
+    return null
+  }
+
   const handleCreateUser = async () => {
+    const validationError = validate()
+    if (validationError) {
+      toast.error(validationError, { position: 'top-center' })
+      throw new Error(validationError)
+    }
     setSubmit(true)
-    if (!email || !selectedRole || !password) {
-      toast.error('Please fill in all fields' ,{position:"top-center"})
-      setSubmit(false)
-      return
-    }
-
-    if ((isExecutiveInvite || isMemberInvite) && !department) {
-      toast.error('Please select a department.' ,{position:"top-center"})
-      setSubmit(false)
-      return
-    }
-
-    if (isMemberInvite && !position) {
-      toast.error('Please select a position.' ,{position:"top-center"})
-      setSubmit(false)
-      return
-    }
-
-    if (isBodInvite && !bodPosition) {
-      toast.error('Please select a BOD position.' ,{position:"top-center"})
-      setSubmit(false)
-      return
-    }
 
     const nextDepartment = (isExecutiveInvite || isMemberInvite) ? department : ''
     const nextPosition = isBodInvite
       ? bodPosition
       : isExecutiveInvite
         ? 'Executive Member'
-        : selectedRole === 'admin'
-          ? 'Admin'
-          : position || 'Member'
+        : position || 'Member'
 
-    const res = await fetch('/api/create-user', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email,
-        password,
-        role: selectedRole,
-        position: nextPosition,
-        department: nextDepartment,
+    try {
+      const res = await fetch('/api/create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+          role: selectedRole,
+          position: nextPosition,
+          department: nextDepartment,
+        })
       })
-    })
-    const { error } = await res.json()
+      const { error } = await res.json()
 
-    if (error) {
-      toast.error(error, {position:'top-center'})
+      if (error) {
+        toast.error(error, { position: 'top-center' })
+        throw new Error(error)
+      }
+
+      toast.success('User created successfully!', { position: 'top-center' })
+      resetForm()
+    } finally {
       setSubmit(false)
-      return
     }
-
-    toast.success('User created successfully!', {position:'top-center'})
-    resetForm()
   }
 
   return (
@@ -194,7 +187,6 @@ export function ButtonInviteUser() {
                     <SelectItem value="user">Member</SelectItem>
                     <SelectItem value="executive">Executive Member</SelectItem>
                     <SelectItem value="bod">Board of Directors</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>
             </Field>
@@ -259,11 +251,18 @@ export function ButtonInviteUser() {
             <Button type="button" variant="outline" onClick={requestClose}>
               Cancel
             </Button>
-            <Button type="button" onClick={handleCreateUser}>
-              {submit &&  <><Spinner data-icon="inline-start" /></>}
-
-              Add User
-            </Button>
+            <ConfirmActionDialog
+              title={<>Invite <span className="font-bold">{email || 'this user'}</span>?</>}
+              description="The user will be created with the temporary password shown and will need to complete their account setup on first login."
+              confirmLabel="Send invite"
+              icon={<UserPlus2Icon className="size-5" />}
+              onConfirm={handleCreateUser}
+            >
+              <Button type="button">
+                {submit && <Spinner data-icon="inline-start" />}
+                Add User
+              </Button>
+            </ConfirmActionDialog>
           </DialogFooter>
         </DialogContent>
       </form>

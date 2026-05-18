@@ -11,11 +11,33 @@ const RealtimeFetch = ({ children }: { children: React.ReactNode }) => {
     const [profiles, setProfiles] = useState<any[]>([])
     const [loading, setLoading] = useState (true)
 
-    const fetchProfile = async ()=> {
-        const {data:details} = await supabase
+    const fetchProfile = async () => {
+        // Fetch profiles
+        const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
             .select('*')
-            setProfiles (details || [])
+        
+        if (profilesError) {
+            console.error("Error fetching profiles:", profilesError)
+            setLoading(false)
+            return
+        }
+
+        // Fetch scores separately
+        const { data: scoresData } = await supabase
+            .from('user_scores')
+            .select('user_id, average_score')
+
+        // Merge them
+        const scoreMap = new Map((scoresData || []).map(s => [s.user_id, s.average_score]))
+        const merged = (profilesData || []).map(profile => ({
+            ...profile,
+            user_scores: scoreMap.has(profile.user_id) 
+                ? [{ average_score: scoreMap.get(profile.user_id) }] 
+                : []
+        }))
+
+        setProfiles(merged)
         setLoading(false)
     }
 

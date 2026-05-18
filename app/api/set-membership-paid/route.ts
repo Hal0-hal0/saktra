@@ -17,7 +17,7 @@ export async function PATCH(request: Request) {
     .eq("user_id", userId)
     .single()
 
-  if (profile?.role !== "admin") {
+  if (profile?.role !== "admin" && profile?.role !== "bod") {
     return Response.json({ error: "Forbidden" }, { status: 403 })
   }
 

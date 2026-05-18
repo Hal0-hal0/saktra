@@ -19,7 +19,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, Settings2Icon, CircleHelpIcon, FileIcon } from "lucide-react"
+import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, Settings2Icon, CircleHelpIcon, FileIcon, ScanLineIcon } from "lucide-react"
 import { HistoryRoundedIcon } from "@/components/icons/material-symbols-history-rounded"
 import { CheckbookRoundedIcon } from "@/components/icons/material-symbols-checkbook-rounded"
 import { Groups2Icon } from "@/components/icons/material-symbols-groups-2"
@@ -43,6 +43,7 @@ const execNav = [
 const userNav = [
   { title: "Dashboard User", url: "/users", icon: <LayoutDashboardIcon /> },
   { title: "Events", url: "/users/events", icon: <LayoutDashboardIcon /> },
+  { title: "Scan Attendance", url: "/users/scan", icon: <ScanLineIcon /> },
   { title: "My Performance", url: "/users/myPerformance", icon: <ChartBarIcon /> },
 ]
 
@@ -60,15 +61,10 @@ const execOperations = [
 
 ]
 
-const bodNav = [
-  { title: "Dashboard", url: "/users", icon: <LayoutDashboardIcon /> },
-  { title: "Evaluation", url: "/users/evaluation", icon: <DataCheckIcon /> },
-  { title: "My Performance", url: "/users/myPerformance", icon: <ChartBarIcon /> },
-]
-
-const bodOperations = [
-  { name: "Evaluation", url: "/users/evaluation", icon: <DataCheckIcon /> },
-]
+// Board of Directors (BOD) share the admin navigation — the rename is UI-only;
+// the DB role may be 'bod' or legacy 'admin'.
+const bodNav = adminNav
+const bodOperations = adminOperations
 
 const userOperations = [
   { name: "Evaluation", url: "/users/evaluation", icon: <DataCheckIcon /> },
@@ -81,8 +77,8 @@ const data = {
     avatar: "/avatars/shadcn.jpg",
   },
   navSecondary: [
-    { title: "Settings", url: "#", icon: (<Settings2Icon />) },
-    { title: "Get Help", url: "#", icon: (<CircleHelpIcon />) },
+    // { title: "Settings", url: "#", icon: (<Settings2Icon />) },
+    { title: "The Developers", url: "#", icon: (<CircleHelpIcon />) },
   ]
 }
 
