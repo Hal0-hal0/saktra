@@ -10,6 +10,8 @@ import { useRouter } from "next/navigation";
 type Profile = {
   user_id: string;
   user_name: string;
+  first_name: string;
+  last_name: string;
   full_name: string;
   email: string;
   role: string;
@@ -18,6 +20,7 @@ type Profile = {
   membership_status: string;
   membership_expires_at: string | null;
   phone: string;
+  phone_country_code: string;
   birthday: string;
   home_address: string;
   school: string;
@@ -28,6 +31,19 @@ type Profile = {
   contact_person_phone: string;
   avatar_url: string | null;
 };
+
+const PROFILE_COUNTRY_CODES = [
+  { code: '+63', label: '🇵🇭 +63' },
+  { code: '+1',  label: '🇺🇸 +1' },
+  { code: '+44', label: '🇬🇧 +44' },
+  { code: '+61', label: '🇦🇺 +61' },
+  { code: '+65', label: '🇸🇬 +65' },
+  { code: '+60', label: '🇲🇾 +60' },
+  { code: '+66', label: '🇹🇭 +66' },
+  { code: '+91', label: '🇮🇳 +91' },
+  { code: '+81', label: '🇯🇵 +81' },
+  { code: '+82', label: '🇰🇷 +82' },
+];
 
 export default function AdminProfilePage() {
   const router = useRouter();
@@ -73,8 +89,11 @@ export default function AdminProfilePage() {
 
   const openEdit = () => {
     setEditData({
+      first_name: user?.first_name ?? '',
+      last_name: user?.last_name ?? '',
       user_name: user?.user_name ?? '',
       phone: user?.phone ?? '',
+      phone_country_code: user?.phone_country_code ?? '+63',
       birthday: user?.birthday ?? '',
       home_address: user?.home_address ?? '',
       school: user?.school ?? '',
@@ -85,7 +104,15 @@ export default function AdminProfilePage() {
     setEditing(true);
   };
 
+  const TODAY = new Date().toISOString().slice(0, 10);
+
   const handleSave = async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (!(editData.first_name ?? '').toString().trim()) { toast.error('First name is required'); return; }
+    if (!(editData.last_name ?? '').toString().trim()) { toast.error('Last name is required'); return; }
+    if (editData.phone && !/^\d{7,15}$/.test(String(editData.phone))) { toast.error('Phone must be 7-15 digits'); return; }
+    if (editData.birthday && String(editData.birthday) >= today) { toast.error('Birthday must be in the past'); return; }
+
     setSaving(true);
     try {
       const res = await fetch('/api/update-profile', {
@@ -96,7 +123,11 @@ export default function AdminProfilePage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error ?? 'Update failed');
       toast.success('Profile updated successfully!');
-      setUser(prev => prev ? { ...prev, ...editData } : prev);
+      setUser(prev => prev ? {
+        ...prev,
+        ...editData,
+        full_name: `${editData.first_name ?? prev.first_name ?? ''} ${editData.last_name ?? prev.last_name ?? ''}`.trim() || prev.full_name,
+      } : prev);
       setEditing(false);
     } catch (err: any) {
       toast.error(err.message ?? 'Something went wrong');
@@ -172,26 +203,78 @@ export default function AdminProfilePage() {
               </button>
             </div>
             <div className="px-6 py-4 grid grid-cols-2 gap-4">
-              {[
-                { label: 'Username', key: 'user_name' },
-                { label: 'Phone', key: 'phone' },
-                { label: 'Birthday', key: 'birthday', type: 'date' },
-                { label: 'Home Address', key: 'home_address' },
-                { label: 'School', key: 'school' },
-                { label: 'Contact Person', key: 'contact_person' },
-                { label: 'Relationship', key: 'contact_person_relationship' },
-                { label: 'Contact Person No.', key: 'contact_person_phone' },
-              ].map(({ label, key, type = 'text' }) => (
-                <div key={key} className={key === 'home_address' || key === 'school' ? 'col-span-2' : ''}>
-                  <label className="block text-xs font-semibold text-zinc-500 mb-1">{label}</label>
+              <EditField label="First Name">
+                <input value={editData.first_name ?? ''}
+                  onChange={(e) => ch('first_name', e.target.value)}
+                  className="profile-input" />
+              </EditField>
+              <EditField label="Last Name">
+                <input value={editData.last_name ?? ''}
+                  onChange={(e) => ch('last_name', e.target.value)}
+                  className="profile-input" />
+              </EditField>
+              <EditField label="Username" wide>
+                <input value={editData.user_name ?? ''}
+                  onChange={(e) => ch('user_name', e.target.value)}
+                  className="profile-input" />
+              </EditField>
+              <EditField label="Phone" wide>
+                <div className="flex gap-2">
+                  <select
+                    value={editData.phone_country_code ?? '+63'}
+                    onChange={(e) => ch('phone_country_code', e.target.value)}
+                    className="profile-input w-28"
+                  >
+                    {PROFILE_COUNTRY_CODES.map((c) => (
+                      <option key={c.code} value={c.code}>{c.label}</option>
+                    ))}
+                  </select>
                   <input
-                    type={type}
-                    value={(editData as any)[key] ?? ''}
-                    onChange={e => ch(key as keyof Profile, e.target.value)}
-                    className="w-full text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 bg-zinc-50 dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                    inputMode="numeric"
+                    pattern="\d*"
+                    value={editData.phone ?? ''}
+                    onChange={(e) => ch('phone', e.target.value.replace(/\D/g, ''))}
+                    placeholder="9171234567"
+                    className="profile-input flex-1"
                   />
                 </div>
-              ))}
+              </EditField>
+              <EditField label="Birthday">
+                <input type="date" value={editData.birthday ?? ''} max={TODAY}
+                  onChange={(e) => ch('birthday', e.target.value)}
+                  className="profile-input" />
+              </EditField>
+              <EditField label="School">
+                <input value={editData.school ?? ''}
+                  onChange={(e) => ch('school', e.target.value)}
+                  className="profile-input" />
+              </EditField>
+              <EditField label="Home Address" wide>
+                <input value={editData.home_address ?? ''}
+                  onChange={(e) => ch('home_address', e.target.value)}
+                  className="profile-input" />
+              </EditField>
+              <EditField label="Contact Person">
+                <input value={editData.contact_person ?? ''}
+                  onChange={(e) => ch('contact_person', e.target.value)}
+                  className="profile-input" />
+              </EditField>
+              <EditField label="Relationship">
+                <input value={editData.contact_person_relationship ?? ''}
+                  onChange={(e) => ch('contact_person_relationship', e.target.value)}
+                  className="profile-input" />
+              </EditField>
+              <EditField label="Contact Person No." wide>
+                <input
+                  inputMode="numeric"
+                  value={editData.contact_person_phone ?? ''}
+                  onChange={(e) => ch('contact_person_phone', e.target.value)}
+                  className="profile-input"
+                />
+              </EditField>
+              <div className="col-span-2 rounded-xl border border-amber-100 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                Department, Position, and Year Joined are assigned by the Board of Directors and cannot be edited here.
+              </div>
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-100 dark:border-zinc-800">
               <button onClick={() => setEditing(false)}
@@ -309,9 +392,10 @@ export default function AdminProfilePage() {
               </div>
               <div className="space-y-2.5">
                 <InfoRow label="Username" value={user?.user_name} />
-                <InfoRow label="Full Name" value={user?.full_name} />
+                <InfoRow label="First Name" value={user?.first_name || (user?.full_name ?? '').split(' ')[0]} />
+                <InfoRow label="Last Name" value={user?.last_name || (user?.full_name ?? '').split(' ').slice(1).join(' ')} />
                 <InfoRow label="Email Address" value={user?.email} />
-                <InfoRow label="Contact Number" value={user?.phone} />
+                <InfoRow label="Contact Number" value={user?.phone ? `${user?.phone_country_code ?? ''} ${user?.phone}`.trim() : undefined} />
                 <InfoRow label="Birthday" value={user?.birthday
                   ? new Date(user.birthday + 'T00:00:00').toLocaleDateString('en-US', { year: '2-digit', month: '2-digit', day: '2-digit' })
                   : undefined} />
@@ -362,6 +446,35 @@ function OrgRow({ label, value, capitalize }: { label: string; value?: string; c
       <span className={`text-zinc-800 dark:text-zinc-200 ${capitalize ? 'capitalize' : ''}`}>
         {value || <span className="text-zinc-300 dark:text-zinc-600 italic text-xs">—</span>}
       </span>
+    </div>
+  );
+}
+
+function EditField({ label, wide, children }: { label: string; wide?: boolean; children: React.ReactNode }) {
+  return (
+    <div className={wide ? 'col-span-2' : ''}>
+      <label className="block text-xs font-semibold text-zinc-500 mb-1">{label}</label>
+      {children}
+      <style jsx global>{`
+        .profile-input {
+          width: 100%;
+          font-size: 0.875rem;
+          border: 1px solid #e4e4e7;
+          border-radius: 0.5rem;
+          padding: 0.5rem 0.75rem;
+          background: #fafafa;
+          outline: none;
+        }
+        .profile-input:focus {
+          border-color: #a78bfa;
+          box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.25);
+        }
+        .dark .profile-input {
+          background: #27272a;
+          border-color: #3f3f46;
+          color: #f4f4f5;
+        }
+      `}</style>
     </div>
   );
 }

@@ -19,7 +19,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, Settings2Icon, CircleHelpIcon, FileIcon, ScanLineIcon } from "lucide-react"
+import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, Settings2Icon, CircleHelpIcon, FileIcon, ScanLineIcon, CalendarDaysIcon } from "lucide-react"
 import { HistoryRoundedIcon } from "@/components/icons/material-symbols-history-rounded"
 import { CheckbookRoundedIcon } from "@/components/icons/material-symbols-checkbook-rounded"
 import { Groups2Icon } from "@/components/icons/material-symbols-groups-2"
@@ -35,14 +35,13 @@ const adminNav = [
 
 const execNav = [
   { title: "Dashboard Exec", url: "/admin", icon: <LayoutDashboardIcon /> },
-  { title: "Placeholder", url: "#", icon: <FolderIcon /> },
-  { title: "Events", url: "/users/events", icon: <LayoutDashboardIcon /> },
+  { title: "Events", url: "/users/events", icon: <CalendarDaysIcon /> },
   { title: "My Performance", url: "/users/myPerformance", icon: <ChartBarIcon /> },
 ]
 
 const userNav = [
   { title: "Dashboard User", url: "/users", icon: <LayoutDashboardIcon /> },
-  { title: "Events", url: "/users/events", icon: <LayoutDashboardIcon /> },
+  { title: "Events", url: "/users/events", icon: <CalendarDaysIcon /> },
   { title: "Scan Attendance", url: "/users/scan", icon: <ScanLineIcon /> },
   { title: "My Performance", url: "/users/myPerformance", icon: <ChartBarIcon /> },
 ]

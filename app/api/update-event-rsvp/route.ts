@@ -16,6 +16,22 @@ export async function POST(request: Request) {
     return Response.json({ error: "Event ID and status are required" }, { status: 400 })
   }
 
+  // Once a user has accepted, the RSVP is locked — they cannot decline or revert
+  // to pending. (The QR check-in flow uses /api/check-in which has its own logic.)
+  const { data: existing } = await supabaseAdmin
+    .from("event_rsvp")
+    .select("status")
+    .eq("user_id", userId)
+    .eq("event_id", eventId)
+    .maybeSingle()
+
+  if (existing?.status === "accepted") {
+    return Response.json(
+      { error: "You have already accepted this event and cannot change your RSVP." },
+      { status: 409 },
+    )
+  }
+
   const { error: upsertError } = await supabaseAdmin
     .from("event_rsvp")
     .upsert(

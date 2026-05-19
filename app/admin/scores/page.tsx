@@ -18,7 +18,8 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { DeleteConfirmDialog } from '@/components/admin/delete-confirm-dialog'
-import { RotateCcw, History } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { RotateCcw, History, ChartBarIcon, ChevronDown } from 'lucide-react'
 
 interface MemberScoreSummary {
   user_id: string
@@ -27,6 +28,7 @@ interface MemberScoreSummary {
   average_score: number
   total_events: number
   highest_score: number
+  event_attendance: number
   scores: any[]
 }
 
@@ -42,6 +44,29 @@ interface ResetLogRow {
   created_at: string
 }
 
+interface EventScoreRow {
+  id: number
+  name: string
+  status: string | null
+  event_eval_score: number | null
+  date_start: string | null
+  date_end: string | null
+  response_count: number
+}
+
+interface HistoryDetailRow {
+  id: string
+  user_id: string
+  event_id: number | null
+  event_evaluation_score: number | null
+  member_evaluation_score: number | null
+  average_score: number | null
+  source_created_at: string | null
+  user_name: string | null
+  user_email: string | null
+  event_name: string | null
+}
+
 export default function AdminScoresPage() {
   const [summaries, setSummaries] = useState<MemberScoreSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,11 +76,65 @@ export default function AdminScoresPage() {
   const [selectedMember, setSelectedMember] = useState<MemberScoreSummary | null>(null)
   const [resetHistory, setResetHistory] = useState<ResetLogRow[]>([])
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [eventScores, setEventScores] = useState<EventScoreRow[]>([])
+  const [expandedCycleId, setExpandedCycleId] = useState<string | null>(null)
+  const [cycleDetails, setCycleDetails] = useState<Record<string, HistoryDetailRow[]>>({})
+  const [cycleDetailsLoading, setCycleDetailsLoading] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     fetchScores()
     fetchResetHistory()
+    fetchEventScores()
   }, [])
+
+  const fetchEventScores = async () => {
+    const [{ data: events }, { data: responses }] = await Promise.all([
+      supabase.from('events').select('id, name, status, event_eval_score, date_start, date_end'),
+      supabase.from('response').select('event_id'),
+    ])
+    const responseCount = new Map<number, number>()
+    responses?.forEach((r: any) => {
+      const id = Number(r.event_id)
+      if (!Number.isFinite(id)) return
+      responseCount.set(id, (responseCount.get(id) ?? 0) + 1)
+    })
+    setEventScores(
+      (events ?? []).map((e: any) => ({
+        id: Number(e.id),
+        name: e.name ?? 'Untitled event',
+        status: e.status,
+        event_eval_score: e.event_eval_score !== null ? Number(e.event_eval_score) : null,
+        date_start: e.date_start,
+        date_end: e.date_end,
+        response_count: responseCount.get(Number(e.id)) ?? 0,
+      })),
+    )
+  }
+
+  const handleResetEventScores = async () => {
+    const res = await fetch('/api/scores/reset-events', { method: 'POST' })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json?.error ?? 'Event scores reset failed')
+    toast.success(`Archived ${json.archivedRows} event score(s).`, { position: 'top-center' })
+    await Promise.all([fetchEventScores(), fetchResetHistory()])
+  }
+
+  const toggleCycleDetails = async (cycleId: string) => {
+    if (expandedCycleId === cycleId) {
+      setExpandedCycleId(null)
+      return
+    }
+    setExpandedCycleId(cycleId)
+    if (cycleDetails[cycleId]) return
+    setCycleDetailsLoading((prev) => ({ ...prev, [cycleId]: true }))
+    try {
+      const res = await fetch(`/api/scores/history/${cycleId}`, { cache: 'no-store' })
+      const json = await res.json()
+      if (res.ok) setCycleDetails((prev) => ({ ...prev, [cycleId]: json.rows ?? [] }))
+    } finally {
+      setCycleDetailsLoading((prev) => ({ ...prev, [cycleId]: false }))
+    }
+  }
 
   const fetchResetHistory = async () => {
     try {
@@ -118,6 +197,18 @@ export default function AdminScoresPage() {
     // Process data
     const summaryMap = new Map<string, MemberScoreSummary>()
     
+    // Fetch attendance counts (event_rsvp.checked_in_at not null)
+    const { data: rsvpData } = await supabase
+      .from('event_rsvp')
+      .select('user_id, checked_in_at')
+      .not('checked_in_at', 'is', null)
+
+    const attendanceByUser = new Map<string, number>()
+    rsvpData?.forEach(r => {
+      if (!r.user_id) return
+      attendanceByUser.set(r.user_id, (attendanceByUser.get(r.user_id) ?? 0) + 1)
+    })
+
     profiles?.forEach(profile => {
       summaryMap.set(profile.user_id, {
         user_id: profile.user_id,
@@ -126,6 +217,7 @@ export default function AdminScoresPage() {
         average_score: 0,
         total_events: 0,
         highest_score: 0,
+        event_attendance: attendanceByUser.get(profile.user_id) ?? 0,
         scores: []
       })
     })
@@ -184,7 +276,7 @@ export default function AdminScoresPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Member Scores Leaderboard</h1>
+          <h1 className="text-2xl font-bold">Scores</h1>
           <p className="text-muted-foreground mt-2">
             Scores reset every year. Reset early if needed — the current snapshot is archived to <strong>Scores History</strong>.
           </p>
@@ -194,19 +286,121 @@ export default function AdminScoresPage() {
             <History className="size-4" />
             Scores History ({resetHistory.length})
           </Button>
-          <DeleteConfirmDialog
-            title="Reset all scores now?"
-            description="The current snapshot will be archived to Scores History, all user_scores rows will be deleted, and every user's total score returns to 0. This cannot be undone."
-            confirmLabel="Reset scores"
-            onConfirm={handleResetScores}
-          >
-            <Button type="button" variant="destructive">
-              <RotateCcw className="size-4" />
-              Reset Scores
-            </Button>
-          </DeleteConfirmDialog>
         </div>
       </div>
+
+      <Tabs defaultValue="members" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="members">Member Scores</TabsTrigger>
+          <TabsTrigger value="events">Event Scores</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="events" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <ChartBarIcon className="size-4" />
+                  Per-event scores
+                </CardTitle>
+                <CardDescription>
+                  Average evaluation score for every event. Reset archives the current snapshot to <strong>Scores History</strong> and clears all event scores back to none.
+                </CardDescription>
+              </div>
+              <DeleteConfirmDialog
+                title="Reset all event scores now?"
+                description="All current event evaluation scores will be archived to Scores History, then cleared. This does not affect member scores."
+                confirmLabel="Reset event scores"
+                onConfirm={handleResetEventScores}
+              >
+                <Button type="button" variant="destructive">
+                  <RotateCcw className="size-4" />
+                  Reset Event Scores
+                </Button>
+              </DeleteConfirmDialog>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto border rounded-lg">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-medium w-16">Rank</th>
+                      <th className="px-4 py-3 text-left font-medium">Event</th>
+                      <th className="px-4 py-3 text-left font-medium">Status</th>
+                      <th className="px-4 py-3 text-left font-medium">Date</th>
+                      <th className="px-4 py-3 text-left font-medium">Responses</th>
+                      <th className="px-4 py-3 text-left font-medium">Avg Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {eventScores.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-3 text-center text-muted-foreground">
+                          No events with scores yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      [...eventScores]
+                        .sort((a, b) => (b.event_eval_score ?? -1) - (a.event_eval_score ?? -1))
+                        .map((row, i) => (
+                          <tr key={row.id} className="border-t hover:bg-muted/50">
+                            <td className="px-4 py-3 font-semibold text-muted-foreground">#{i + 1}</td>
+                            <td className="px-4 py-3 font-medium capitalize">{row.name}</td>
+                            <td className="px-4 py-3">
+                              <Badge variant={row.status === 'done' ? 'secondary' : 'default'}>
+                                {row.status ?? 'ongoing'}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3 text-muted-foreground">
+                              {row.date_start ? new Date(row.date_start).toLocaleDateString() : '—'}
+                            </td>
+                            <td className="px-4 py-3">{row.response_count}</td>
+                            <td className="px-4 py-3 font-bold">
+                              {row.event_eval_score !== null ? `${row.event_eval_score.toFixed(2)} / 10` : '—'}
+                            </td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                  {eventScores.length > 0 && (() => {
+                    const scored = eventScores.filter((r) => r.event_eval_score !== null)
+                    const avg = scored.length
+                      ? scored.reduce((a, r) => a + (r.event_eval_score ?? 0), 0) / scored.length
+                      : null
+                    return (
+                      <tfoot className="bg-muted/60 border-t-2 font-semibold">
+                        <tr>
+                          <td className="px-4 py-3" colSpan={4}>
+                            Total — {eventScores.length} event{eventScores.length === 1 ? '' : 's'}
+                          </td>
+                          <td className="px-4 py-3">
+                            {eventScores.reduce((a, r) => a + r.response_count, 0)}
+                          </td>
+                          <td className="px-4 py-3">{avg !== null ? `${avg.toFixed(2)} / 10` : '—'}</td>
+                        </tr>
+                      </tfoot>
+                    )
+                  })()}
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="members" className="space-y-4">
+          <div className="flex justify-end">
+            <DeleteConfirmDialog
+              title="Reset all member scores now?"
+              description="The current snapshot will be archived to Scores History, all user_scores rows will be deleted, and every user's total score returns to 0. This cannot be undone."
+              confirmLabel="Reset scores"
+              onConfirm={handleResetScores}
+            >
+              <Button type="button" variant="destructive">
+                <RotateCcw className="size-4" />
+                Reset Member Scores
+              </Button>
+            </DeleteConfirmDialog>
+          </div>
 
       <Card>
         <CardHeader>
@@ -265,6 +459,7 @@ export default function AdminScoresPage() {
                     <th className="px-4 py-3 text-left font-medium">Status</th>
                     <th className="px-4 py-3 text-left font-medium">Avg Score</th>
                     <th className="px-4 py-3 text-left font-medium">Total Events</th>
+                    <th className="px-4 py-3 text-left font-medium">Event Attendance</th>
                     <th className="px-4 py-3 text-left font-medium">Highest Score</th>
                     <th className="px-4 py-3 text-left font-medium">Action</th>
                   </tr>
@@ -272,13 +467,13 @@ export default function AdminScoresPage() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-3 text-center text-muted-foreground">
+                      <td colSpan={8} className="px-4 py-3 text-center text-muted-foreground">
                         Loading...
                       </td>
                     </tr>
                   ) : filteredAndSorted.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-3 text-center text-muted-foreground">
+                      <td colSpan={8} className="px-4 py-3 text-center text-muted-foreground">
                         No members found
                       </td>
                     </tr>
@@ -302,6 +497,9 @@ export default function AdminScoresPage() {
                         <td className="px-4 py-3">
                           {summary.total_events}
                         </td>
+                        <td className="px-4 py-3">
+                          {summary.event_attendance}
+                        </td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {summary.highest_score > 0 ? summary.highest_score.toFixed(2) : '-'}
                         </td>
@@ -314,19 +512,53 @@ export default function AdminScoresPage() {
                     ))
                   )}
                 </tbody>
+                {!loading && filteredAndSorted.length > 0 && (
+                  <tfoot className="bg-muted/60 border-t-2 font-semibold">
+                    <tr>
+                      <td className="px-4 py-3" colSpan={3}>Total</td>
+                      <td className="px-4 py-3">
+                        {(() => {
+                          const scored = filteredAndSorted.filter(s => s.average_score > 0)
+                          if (!scored.length) return '-'
+                          const sum = scored.reduce((a, s) => a + s.average_score, 0)
+                          return (sum / scored.length).toFixed(2)
+                        })()}
+                      </td>
+                      <td className="px-4 py-3">
+                        {filteredAndSorted.reduce((a, s) => a + s.total_events, 0)}
+                      </td>
+                      <td className="px-4 py-3">
+                        {filteredAndSorted.reduce((a, s) => a + s.event_attendance, 0)}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {(() => {
+                          const highs = filteredAndSorted.filter(s => s.highest_score > 0).map(s => s.highest_score)
+                          if (!highs.length) return '-'
+                          return Math.max(...highs).toFixed(2)
+                        })()}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        {filteredAndSorted.length} member{filteredAndSorted.length === 1 ? '' : 's'}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
 
-      {/* Scores History Dialog */}
+      {/* Scores History Dialog — each summary row is expandable to show the
+          archived per-row details for that reset cycle. */}
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent className="sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle>Scores History</DialogTitle>
             <DialogDescription>
-              Each row is a snapshot taken when scores were reset.
+              Click any reset to see the full archived rows from that cycle.
             </DialogDescription>
           </DialogHeader>
 
@@ -335,33 +567,96 @@ export default function AdminScoresPage() {
               No resets have occurred yet.
             </div>
           ) : (
-            <div className="max-h-[60vh] overflow-y-auto border rounded-lg">
+            <div className="max-h-[70vh] overflow-y-auto border rounded-lg">
               <table className="w-full text-sm">
                 <thead className="bg-muted sticky top-0">
                   <tr>
+                    <th className="px-4 py-3 text-left font-medium w-8"></th>
                     <th className="px-4 py-3 text-left font-medium">When</th>
                     <th className="px-4 py-3 text-left font-medium">Label</th>
                     <th className="px-4 py-3 text-left font-medium">Trigger</th>
-                    <th className="px-4 py-3 text-left font-medium">Rows archived</th>
-                    <th className="px-4 py-3 text-left font-medium">Users affected</th>
+                    <th className="px-4 py-3 text-left font-medium">Rows</th>
+                    <th className="px-4 py-3 text-left font-medium">Users</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {resetHistory.map((row) => (
-                    <tr key={row.id} className="border-t">
-                      <td className="px-4 py-3 text-sm">
-                        {new Date(row.created_at).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 font-medium">{row.cycle_label}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant={row.trigger === 'yearly' ? 'default' : 'secondary'}>
-                          {row.trigger}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">{row.archived_rows}</td>
-                      <td className="px-4 py-3">{row.affected_users}</td>
-                    </tr>
-                  ))}
+                  {resetHistory.map((row) => {
+                    const expanded = expandedCycleId === row.cycle_id
+                    const details = cycleDetails[row.cycle_id] ?? []
+                    const detailsLoading = cycleDetailsLoading[row.cycle_id] ?? false
+                    return (
+                      <>
+                        <tr
+                          key={row.id}
+                          className="border-t cursor-pointer hover:bg-muted/40"
+                          onClick={() => toggleCycleDetails(row.cycle_id)}
+                        >
+                          <td className="px-4 py-3 text-muted-foreground">
+                            <ChevronDown
+                              className={`size-4 transition-transform ${expanded ? 'rotate-180' : ''}`}
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-sm">{new Date(row.created_at).toLocaleString()}</td>
+                          <td className="px-4 py-3 font-medium">{row.cycle_label}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant={row.trigger === 'yearly' ? 'default' : 'secondary'}>
+                              {row.trigger}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">{row.archived_rows}</td>
+                          <td className="px-4 py-3">{row.affected_users}</td>
+                        </tr>
+                        {expanded && (
+                          <tr key={`${row.id}-detail`} className="border-t bg-muted/20">
+                            <td colSpan={6} className="px-4 py-3">
+                              {detailsLoading ? (
+                                <div className="py-6 text-center text-muted-foreground text-sm">Loading details…</div>
+                              ) : details.length === 0 ? (
+                                <div className="py-6 text-center text-muted-foreground text-sm">No archived rows.</div>
+                              ) : (
+                                <div className="border rounded-lg bg-background">
+                                  <table className="w-full text-xs">
+                                    <thead className="bg-muted">
+                                      <tr>
+                                        <th className="px-3 py-2 text-left font-medium">User</th>
+                                        <th className="px-3 py-2 text-left font-medium">Event</th>
+                                        <th className="px-3 py-2 text-left font-medium">Event score</th>
+                                        <th className="px-3 py-2 text-left font-medium">Member score</th>
+                                        <th className="px-3 py-2 text-left font-medium">Average</th>
+                                        <th className="px-3 py-2 text-left font-medium">Archived at</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {details.map((d) => (
+                                        <tr key={d.id} className="border-t">
+                                          <td className="px-3 py-2">
+                                            {d.user_name ?? d.user_email ?? <span className="text-muted-foreground">(event-level)</span>}
+                                          </td>
+                                          <td className="px-3 py-2">{d.event_name ?? '—'}</td>
+                                          <td className="px-3 py-2">
+                                            {d.event_evaluation_score !== null ? Number(d.event_evaluation_score).toFixed(2) : '—'}
+                                          </td>
+                                          <td className="px-3 py-2">
+                                            {d.member_evaluation_score !== null ? Number(d.member_evaluation_score).toFixed(2) : '—'}
+                                          </td>
+                                          <td className="px-3 py-2 font-semibold">
+                                            {d.average_score !== null ? Number(d.average_score).toFixed(2) : '—'}
+                                          </td>
+                                          <td className="px-3 py-2 text-muted-foreground">
+                                            {d.source_created_at ? new Date(d.source_created_at).toLocaleString() : '—'}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
