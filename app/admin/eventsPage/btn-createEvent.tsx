@@ -28,7 +28,13 @@ import {
 import { DiscardChangesAlert } from "@/components/ui/discard-changes-alert"
 import { useUnsavedChangesGuard } from "@/lib/use-unsaved-changes-guard"
 import { EventProvider, useEvent } from "./event-provider"
-import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem } from "@/components/ui/combobox"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { supabase } from "@/lib/supabase/supabase-client"
 
 export function ButtonCreateEvent() {
@@ -201,41 +207,43 @@ export function ButtonCreateEvent() {
             />
           </Field>
           <div className="flex flex-row gap-5">
-            <Field>
+            <Field className="flex-1">
               <Label>Event Chair (Optional)</Label>
-              <Combobox value={eventChairId} onValueChange={(val) => setEventChairId(val || "")}>
-                <ComboboxInput
-                  placeholder="Select event chair..."
-                  showClear
-                />
-                <ComboboxContent>
-                  <ComboboxList>
-                    {profiles.map((profile) => (
-                      <ComboboxItem key={profile.id} value={profile.user_id}>
-                        {profile.user_name}
-                      </ComboboxItem>
-                    ))}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
+              <Select
+                value={eventChairId || "__none__"}
+                onValueChange={(value) => setEventChairId(value === "__none__" ? "" : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select event chair..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No event chair</SelectItem>
+                  {profiles.map((profile) => (
+                    <SelectItem key={profile.user_id} value={profile.user_id}>
+                      {profile.user_name || profile.email || "Unnamed"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
-            <Field>
+            <Field className="flex-1">
               <Label>Vice Chair (Optional)</Label>
-              <Combobox value={vcId} onValueChange={(val) => setVcId(val || "")}>
-                <ComboboxInput
-                  placeholder="Select vice chair..."
-                  showClear
-                />
-                <ComboboxContent>
-                  <ComboboxList>
-                    {profiles.map((profile) => (
-                      <ComboboxItem key={profile.id} value={profile.user_id}>
-                        {profile.user_name}
-                      </ComboboxItem>
-                    ))}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
+              <Select
+                value={vcId || "__none__"}
+                onValueChange={(value) => setVcId(value === "__none__" ? "" : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select vice chair..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No vice chair</SelectItem>
+                  {profiles.map((profile) => (
+                    <SelectItem key={profile.user_id} value={profile.user_id}>
+                      {profile.user_name || profile.email || "Unnamed"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
           </div>
           <div className="flex flex-row gap-5">

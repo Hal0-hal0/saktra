@@ -11,28 +11,44 @@ import {
 } from 'lucide-react';
 
 type FormData = {
-  full_name: string;
+  first_name: string;
+  last_name: string;
   user_name: string;
+  phone_country_code: string;
   phone: string;
   birthday: string;
   home_address: string;
   school: string;
-  department: string;
-  role_title: string;
-  year_joined: string;
   contact_person: string;
   contact_person_relationship: string;
+  contact_person_phone_country_code: string;
   contact_person_phone: string;
   new_password: string;
   confirm_password: string;
 };
 
+// Organization step removed — department / position / year_joined are assigned by
+// the BOD via Invite Member and are not user-editable in setup.
 const STEPS = [
   { id: 1, label: 'Personal Info', icon: User },
-  { id: 2, label: 'Organization', icon: Building2 },
-  { id: 3, label: 'Emergency Contact', icon: Shield },
-  { id: 4, label: 'Set Password', icon: Lock },
+  { id: 2, label: 'Emergency Contact', icon: Shield },
+  { id: 3, label: 'Set Password', icon: Lock },
 ];
+
+const COUNTRY_CODES = [
+  { code: '+63', label: '🇵🇭 +63' },
+  { code: '+1',  label: '🇺🇸 +1' },
+  { code: '+44', label: '🇬🇧 +44' },
+  { code: '+61', label: '🇦🇺 +61' },
+  { code: '+65', label: '🇸🇬 +65' },
+  { code: '+60', label: '🇲🇾 +60' },
+  { code: '+66', label: '🇹🇭 +66' },
+  { code: '+91', label: '🇮🇳 +91' },
+  { code: '+81', label: '🇯🇵 +81' },
+  { code: '+82', label: '🇰🇷 +82' },
+];
+
+const TODAY_ISO = new Date().toISOString().slice(0, 10);
 
 export default function AccountSetup() {
   const router = useRouter();
@@ -45,21 +61,22 @@ export default function AccountSetup() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const [form, setForm] = useState<FormData>({
-    full_name: '',
+    first_name: '',
+    last_name: '',
     user_name: '',
+    phone_country_code: '+63',
     phone: '',
     birthday: '',
     home_address: '',
     school: '',
-    department: '',
-    role_title: '',
-    year_joined: new Date().getFullYear().toString(),
     contact_person: '',
     contact_person_relationship: '',
+    contact_person_phone_country_code: '+63',
     contact_person_phone: '',
     new_password: '',
     confirm_password: '',
   });
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
 
   useEffect(() => {
     const checkUser = async () => {
@@ -85,19 +102,24 @@ export default function AccountSetup() {
       }
 
       if (profile) {
+        // Derive first/last from full_name if those columns are still empty.
+        const fallbackFirst = (profile.full_name ?? '').split(' ')[0] ?? '';
+        const fallbackLast = (profile.full_name ?? '').includes(' ')
+          ? (profile.full_name ?? '').slice(((profile.full_name ?? '').indexOf(' ') + 1))
+          : '';
         setForm(prev => ({
           ...prev,
-          full_name: profile.full_name ?? '',
-          user_name: profile.user_name ?? '',
+          first_name: profile.first_name || fallbackFirst,
+          last_name: profile.last_name || fallbackLast,
+          user_name: profile.user_name && profile.user_name !== 'Not Set' ? profile.user_name : '',
+          phone_country_code: profile.phone_country_code || '+63',
           phone: profile.phone ?? '',
           birthday: profile.birthday ?? '',
           home_address: profile.home_address ?? '',
           school: profile.school ?? '',
-          department: profile.department ?? '',
-          role_title: profile.role_title ?? '',
-          year_joined: profile.year_joined ?? new Date().getFullYear().toString(),
           contact_person: profile.contact_person ?? '',
           contact_person_relationship: profile.contact_person_relationship ?? '',
+          contact_person_phone_country_code: '+63',
           contact_person_phone: profile.contact_person_phone ?? '',
         }));
       }
@@ -108,29 +130,49 @@ export default function AccountSetup() {
   }, [router]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    // Phone fields: digits only.
+    if (name === 'phone' || name === 'contact_person_phone') {
+      setForm(prev => ({ ...prev, [name]: value.replace(/\D/g, '') }));
+      return;
+    }
+    setForm(prev => ({ ...prev, [name]: value }));
+    if (name === 'user_name') setUsernameStatus('idle');
+  };
+
+  const checkUsername = async () => {
+    const username = form.user_name.trim();
+    if (!username) { setUsernameStatus('idle'); return; }
+    setUsernameStatus('checking');
+    const { data } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .ilike('user_name', username)
+      .neq('user_id', userId ?? '')
+      .maybeSingle();
+    setUsernameStatus(data ? 'taken' : 'available');
   };
 
   const validateStep = (): boolean => {
     if (currentStep === 1) {
-      if (!form.full_name.trim()) { toast.error('Full name is required'); return false; }
+      if (!form.first_name.trim()) { toast.error('First name is required'); return false; }
+      if (!form.last_name.trim()) { toast.error('Last name is required'); return false; }
       if (!form.user_name.trim()) { toast.error('Username is required'); return false; }
+      if (usernameStatus === 'taken') { toast.error('Username is already taken'); return false; }
       if (!form.phone.trim()) { toast.error('Phone number is required'); return false; }
+      if (!/^\d{7,15}$/.test(form.phone)) { toast.error('Phone must be 7–15 digits'); return false; }
       if (!form.birthday) { toast.error('Birthday is required'); return false; }
+      if (form.birthday >= TODAY_ISO) { toast.error('Birthday must be in the past'); return false; }
       if (!form.home_address.trim()) { toast.error('Home address is required'); return false; }
       if (!form.school.trim()) { toast.error('School is required'); return false; }
     }
     if (currentStep === 2) {
-      if (!form.department.trim()) { toast.error('Department is required'); return false; }
-      if (!form.role_title.trim()) { toast.error('Role/Position is required'); return false; }
-      if (!form.year_joined) { toast.error('Year joined is required'); return false; }
-    }
-    if (currentStep === 3) {
       if (!form.contact_person.trim()) { toast.error('Emergency contact name is required'); return false; }
       if (!form.contact_person_relationship.trim()) { toast.error('Relationship is required'); return false; }
       if (!form.contact_person_phone.trim()) { toast.error('Emergency contact number is required'); return false; }
+      if (!/^\d{7,15}$/.test(form.contact_person_phone)) { toast.error('Contact phone must be 7–15 digits'); return false; }
     }
-    if (currentStep === 4) {
+    if (currentStep === 3) {
       if (!form.new_password) { toast.error('Password is required'); return false; }
       if (form.new_password.length < 8) { toast.error('Password must be at least 8 characters'); return false; }
       if (form.new_password !== form.confirm_password) { toast.error('Passwords do not match'); return false; }
@@ -156,27 +198,36 @@ export default function AccountSetup() {
       });
       if (passError) throw new Error(passError.message);
 
-      // Update profile
+      // Final uniqueness check (race-safe via the partial unique index).
+      const fullName = `${form.first_name.trim()} ${form.last_name.trim()}`.trim();
+
+      // Store phone digits separately from the country code so the profile
+      // editor can render each piece on its own.
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
-          full_name: form.full_name,
-          user_name: form.user_name,
+          first_name: form.first_name.trim(),
+          last_name: form.last_name.trim(),
+          full_name: fullName,
+          user_name: form.user_name.trim(),
+          phone_country_code: form.phone_country_code,
           phone: form.phone,
           birthday: form.birthday,
           home_address: form.home_address,
           school: form.school,
-          department: form.department,
-          role_title: form.role_title,
-          year_joined: form.year_joined,
           contact_person: form.contact_person,
           contact_person_relationship: form.contact_person_relationship,
-          contact_person_phone: form.contact_person_phone,
+          contact_person_phone: `${form.contact_person_phone_country_code} ${form.contact_person_phone}`,
           is_setup_complete: true,
         })
         .eq('user_id', userId);
 
-      if (profileError) throw new Error(profileError.message);
+      if (profileError) {
+        if (profileError.message?.includes('profiles_user_name_unique')) {
+          throw new Error('That username is already taken. Pick another.');
+        }
+        throw new Error(profileError.message);
+      }
 
       // Fetch role to redirect correctly
       const { data: profile } = await supabase
@@ -185,7 +236,7 @@ export default function AccountSetup() {
         .eq('user_id', userId)
         .single();
 
-      toast.success('Account setup complete! Welcome aboard 🎉');
+      toast.success('Account setup complete! Welcome aboard');
 
       const dest = profile?.role === 'admin' ? '/admin' : profile?.role === 'user' ? '/users' : '/exec';
       setTimeout(() => router.push(dest), 1500);
@@ -266,27 +317,71 @@ export default function AccountSetup() {
           {/* ── STEP 1: Personal Info ── */}
           {currentStep === 1 && (
             <div className="space-y-4">
-              <FieldRow icon={<User className="w-4 h-4 text-violet-500" />} label="Full Name">
-                <input name="full_name" value={form.full_name} onChange={handleChange}
-                  placeholder="e.g. Juan Dela Cruz"
-                  className="field-input" />
-              </FieldRow>
-              <FieldRow icon={<User className="w-4 h-4 text-violet-500" />} label="Username">
-                <input name="user_name" value={form.user_name} onChange={handleChange}
-                  placeholder="e.g. juandc"
-                  className="field-input" />
-              </FieldRow>
               <div className="grid grid-cols-2 gap-4">
-                <FieldRow icon={<Phone className="w-4 h-4 text-violet-500" />} label="Phone">
-                  <input name="phone" value={form.phone} onChange={handleChange}
-                    placeholder="09XXXXXXXXX"
+                <FieldRow icon={<User className="w-4 h-4 text-violet-500" />} label="First Name">
+                  <input name="first_name" value={form.first_name} onChange={handleChange}
+                    placeholder="Juan"
                     className="field-input" />
                 </FieldRow>
-                <FieldRow icon={<Calendar className="w-4 h-4 text-violet-500" />} label="Birthday">
-                  <input name="birthday" type="date" value={form.birthday} onChange={handleChange}
+                <FieldRow icon={<User className="w-4 h-4 text-violet-500" />} label="Last Name">
+                  <input name="last_name" value={form.last_name} onChange={handleChange}
+                    placeholder="Dela Cruz"
                     className="field-input" />
                 </FieldRow>
               </div>
+              <FieldRow icon={<User className="w-4 h-4 text-violet-500" />} label="Username">
+                <input name="user_name" value={form.user_name} onChange={handleChange}
+                  onBlur={checkUsername}
+                  placeholder="e.g. juandc"
+                  className="field-input" />
+                {usernameStatus === 'checking' && (
+                  <p className="text-xs text-zinc-400 mt-1">Checking availability…</p>
+                )}
+                {usernameStatus === 'available' && (
+                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Username is available
+                  </p>
+                )}
+                {usernameStatus === 'taken' && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" /> Username is already taken
+                  </p>
+                )}
+              </FieldRow>
+              <FieldRow icon={<Phone className="w-4 h-4 text-violet-500" />} label="Phone">
+                <div className="flex gap-2 items-stretch">
+                  <div className='w-30'>
+                    <select
+                    name="phone_country_code"
+                    value={form.phone_country_code}
+                    onChange={handleChange}
+                    className="field-input w-28 bg-zinc-50 dark:bg-zinc-800 cursor-pointer"
+                    aria-label="Country code"
+                    >
+                      {COUNTRY_CODES.map((c) => (
+                        <option key={c.code} value={c.code}>{c.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <input
+                    name="phone"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    value={form.phone}
+                    onChange={handleChange}
+                    placeholder="9171234567"
+                    className="field-input flex-1 min-w-0"
+                  />
+                </div>
+                <p className="text-[10px] text-zinc-400 mt-1">Select your country code on the left, then type your number (digits only).</p>
+              </FieldRow>
+              <FieldRow icon={<Calendar className="w-4 h-4 text-violet-500" />} label="Birthday">
+                <input name="birthday" type="date" value={form.birthday} onChange={handleChange}
+                  max={TODAY_ISO}
+                  className="field-input" />
+              </FieldRow>
               <FieldRow icon={<MapPin className="w-4 h-4 text-violet-500" />} label="Home Address">
                 <input name="home_address" value={form.home_address} onChange={handleChange}
                   placeholder="City, Province, Philippines"
@@ -305,30 +400,8 @@ export default function AccountSetup() {
             </div>
           )}
 
-          {/* ── STEP 2: Organization ── */}
+          {/* ── STEP 2: Emergency Contact ── */}
           {currentStep === 2 && (
-            <div className="space-y-4">
-              <FieldRow icon={<Building2 className="w-4 h-4 text-violet-500" />} label="Department">
-                <input name="department" value={form.department} onChange={handleChange}
-                  placeholder="e.g. Media & Creatives"
-                  className="field-input" />
-              </FieldRow>
-              <FieldRow icon={<UserCheck className="w-4 h-4 text-violet-500" />} label="Role / Position">
-                <input name="role_title" value={form.role_title} onChange={handleChange}
-                  placeholder="e.g. Creatives Officer"
-                  className="field-input" />
-              </FieldRow>
-              <FieldRow icon={<Calendar className="w-4 h-4 text-violet-500" />} label="Year Joined">
-                <input name="year_joined" type="number" value={form.year_joined} onChange={handleChange}
-                  min="2000" max={new Date().getFullYear()}
-                  placeholder={new Date().getFullYear().toString()}
-                  className="field-input" />
-              </FieldRow>
-            </div>
-          )}
-
-          {/* ── STEP 3: Emergency Contact ── */}
-          {currentStep === 3 && (
             <div className="space-y-4">
               <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900 rounded-xl text-xs text-blue-700 dark:text-blue-300">
                 This person will be contacted in case of an emergency. Please provide accurate information.
@@ -344,15 +417,38 @@ export default function AccountSetup() {
                   className="field-input" />
               </FieldRow>
               <FieldRow icon={<Phone className="w-4 h-4 text-violet-500" />} label="Contact Number">
-                <input name="contact_person_phone" value={form.contact_person_phone} onChange={handleChange}
-                  placeholder="09XXXXXXXXX"
-                  className="field-input" />
+                <div className="flex gap-2 items-stretch">
+                  <div className='w-30'>
+                    <select
+                    name="contact_person_phone_country_code"
+                    value={form.contact_person_phone_country_code}
+                    onChange={handleChange}
+                    className="field-input w-28 bg-zinc-50 dark:bg-zinc-800 cursor-pointer"
+                    aria-label="Country code"
+                    >
+                      {COUNTRY_CODES.map((c) => (
+                        <option key={c.code} value={c.code}>{c.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <input
+                    name="contact_person_phone"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    value={form.contact_person_phone}
+                    onChange={handleChange}
+                    placeholder="9171234567"
+                    className="field-input flex-1 min-w-0"
+                  />
+                </div>
               </FieldRow>
             </div>
           )}
 
-          {/* ── STEP 4: Password ── */}
-          {currentStep === 4 && (
+          {/* ── STEP 3: Password ── */}
+          {currentStep === 3 && (
             <div className="space-y-4">
               <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900 rounded-xl text-xs text-amber-700 dark:text-amber-300">
                 Set a new secure password for your account. You won&apos;t be able to use the temporary one after this.
@@ -455,17 +551,36 @@ export default function AccountSetup() {
           border: 1.5px solid #e4e4e7;
           border-radius: 0.625rem;
           font-size: 0.875rem;
-          background: transparent;
-          color: inherit;
+          background: #ffffff;
+          color: #18181b;
           outline: none;
           transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .field-input::placeholder {
+          color: #a1a1aa;
+        }
+        select.field-input {
+          appearance: auto;
+        }
+        select.field-input option {
+          background: #ffffff;
+          color: #18181b;
         }
         .field-input:focus {
           border-color: #7c3aed;
           box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
         }
         .dark .field-input {
+          background: #18181b;
+          color: #f4f4f5;
           border-color: #3f3f46;
+        }
+        .dark .field-input::placeholder {
+          color: #71717a;
+        }
+        .dark select.field-input option {
+          background: #18181b;
+          color: #f4f4f5;
         }
         .dark .field-input:focus {
           border-color: #7c3aed;

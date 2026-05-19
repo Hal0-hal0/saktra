@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import QRCode from "qrcode"
 import { format, parse, isBefore, startOfDay, parseISO } from "date-fns"
-import { QrCode, CalendarDays, Clock3, MapPin, Copy, ExternalLink } from "lucide-react"
+import { QrCode, CalendarDays, Clock3, MapPin, Copy, ExternalLink, Users } from "lucide-react"
 import { supabase } from "@/lib/supabase/supabase-client"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -56,6 +56,15 @@ const formatEventTime = (value?: string) => {
   return format(parse(value, "HH:mm:ss", new Date()), "h:mm a")
 }
 
+type CheckIn = {
+  event_id: string
+  user_id: string
+  checked_in_at: string
+  points_awarded: number | null
+  user_name: string | null
+  email: string | null
+}
+
 const AttendancePage = () => {
   const [events, setEvents] = useState<EventRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -63,6 +72,8 @@ const AttendancePage = () => {
   const [qrCodeUrl, setQrCodeUrl] = useState("")
   const [attendUrl, setAttendUrl] = useState("")
   const [qrLoading, setQrLoading] = useState(false)
+  const [checkIns, setCheckIns] = useState<CheckIn[]>([])
+  const [attendanceEventId, setAttendanceEventId] = useState<string>("all")
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -78,7 +89,38 @@ const AttendancePage = () => {
       setLoading(false)
     }
 
+    const fetchCheckIns = async () => {
+      const { data, error } = await supabase
+        .from("event_rsvp")
+        .select("event_id, user_id, checked_in_at, points_awarded")
+        .not("checked_in_at", "is", null)
+        .order("checked_in_at", { ascending: false })
+      if (error) return
+      const userIds = Array.from(new Set((data ?? []).map((r) => r.user_id).filter(Boolean))) as string[]
+      let profileMap = new Map<string, { user_name: string | null; email: string | null }>()
+      if (userIds.length) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, user_name, email")
+          .in("user_id", userIds)
+        profileMap = new Map(
+          (profiles ?? []).map((p) => [p.user_id, { user_name: p.user_name, email: p.email }]),
+        )
+      }
+      setCheckIns(
+        (data ?? []).map((row) => ({
+          event_id: String(row.event_id),
+          user_id: row.user_id,
+          checked_in_at: row.checked_in_at,
+          points_awarded: row.points_awarded,
+          user_name: profileMap.get(row.user_id)?.user_name ?? null,
+          email: profileMap.get(row.user_id)?.email ?? null,
+        })),
+      )
+    }
+
     fetchEvents()
+    fetchCheckIns()
 
     const channel = supabase
       .channel("attendance-events-realtime")
@@ -87,6 +129,13 @@ const AttendancePage = () => {
         { event: "*", schema: "public", table: "events" },
         () => {
           fetchEvents()
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "event_rsvp" },
+        () => {
+          fetchCheckIns()
         }
       )
       .subscribe()
@@ -224,6 +273,95 @@ const AttendancePage = () => {
             })}
           </div>
         )}
+
+        {/* Attendance tracking table */}
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div className="space-y-1">
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="size-4" />
+                  Check-in Log
+                </CardTitle>
+                <CardDescription>
+                  Every user who has scanned a QR code is recorded here. Filter by event to see attendance for a specific one.
+                </CardDescription>
+              </div>
+              <div className="min-w-48">
+                <select
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={attendanceEventId}
+                  onChange={(e) => setAttendanceEventId(e.target.value)}
+                >
+                  <option value="all">All events</option>
+                  {events.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              const filtered =
+                attendanceEventId === "all"
+                  ? checkIns
+                  : checkIns.filter((c) => c.event_id === attendanceEventId)
+              const eventNameById = new Map(events.map((e) => [e.id, e.name]))
+              if (filtered.length === 0) {
+                return (
+                  <div className="rounded-xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
+                    No check-ins recorded yet.
+                  </div>
+                )
+              }
+              return (
+                <div className="overflow-x-auto border rounded-lg">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-medium">User</th>
+                        <th className="px-4 py-3 text-left font-medium">Email</th>
+                        <th className="px-4 py-3 text-left font-medium">Event</th>
+                        <th className="px-4 py-3 text-left font-medium">Checked in at</th>
+                        <th className="px-4 py-3 text-left font-medium">Points</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((row, i) => (
+                        <tr key={`${row.event_id}-${row.user_id}-${i}`} className="border-t hover:bg-muted/50">
+                          <td className="px-4 py-3 font-medium">
+                            {row.user_name && row.user_name !== "null" ? row.user_name : "Unknown user"}
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">{row.email ?? "—"}</td>
+                          <td className="px-4 py-3 capitalize">{eventNameById.get(row.event_id) ?? "Unknown event"}</td>
+                          <td className="px-4 py-3 text-muted-foreground">
+                            {new Date(row.checked_in_at).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge variant="secondary">+{Number(row.points_awarded ?? 0)}</Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-muted/60 border-t-2 font-semibold">
+                      <tr>
+                        <td className="px-4 py-3" colSpan={4}>
+                          Total — {filtered.length} check-in{filtered.length === 1 ? "" : "s"}
+                        </td>
+                        <td className="px-4 py-3">
+                          +{filtered.reduce((a, r) => a + Number(r.points_awarded ?? 0), 0)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )
+            })()}
+          </CardContent>
+        </Card>
       </div>
 
       <Dialog open={!!selectedEvent} onOpenChange={(open) => !open && closeDialog()}>

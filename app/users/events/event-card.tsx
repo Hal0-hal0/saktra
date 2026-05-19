@@ -160,19 +160,25 @@ export function EventCard({ event, userId, onRsvp }: Props) {
             </CardContent>
 
             <CardFooter className="pt-0 flex flex-col gap-2">
-                {/* RSVP Buttons — only for non-past events */}
-                {!isPast && (
+                {/* RSVP Buttons — only for non-past events.
+                    Once accepted, the RSVP is locked: show a single confirmed pill
+                    instead of toggle-able buttons so the user can't unaccept. */}
+                {!isPast && rsvp === 'accepted' && (
+                    <div className="flex items-center justify-center gap-1.5 w-full rounded-md bg-emerald-600 text-white py-2 text-xs font-medium">
+                        <CheckCircle2 className="size-3.5" />
+                        Accepted — confirmed
+                    </div>
+                )}
+                {!isPast && rsvp !== 'accepted' && (
                     <div className="flex gap-2 w-full">
                         <Button
                             size="sm"
-                            variant={rsvp === 'accepted' ? 'default' : 'outline'}
+                            variant="outline"
                             className={cn(
                                 'flex-1 gap-1.5 text-xs font-medium transition-all',
-                                rsvp === 'accepted'
-                                    ? 'bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-white'
-                                    : 'hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
+                                'hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
                             )}
-                            onClick={() => onRsvp(event.id, rsvp === 'accepted' ? 'pending' : 'accepted')}
+                            onClick={() => onRsvp(event.id, 'accepted')}
                         >
                             <CheckCircle2 className="size-3.5" />
                             Accept
