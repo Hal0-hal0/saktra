@@ -1,11 +1,13 @@
 "use client"
 import * as React from "react"
+import { toast } from "sonner"
 
 import {
   ColumnDef,
   ColumnFiltersState,
   getFilteredRowModel,
   flexRender,
+  RowSelectionState,
   SortingState,
   getSortedRowModel,
   getCoreRowModel,
@@ -26,6 +28,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ButtonInviteUser } from "./btn-inviteUser"
 import { formatEvaluationRole } from "@/lib/member-evaluation"
+import { BulkDeleteToolbar, selectionColumn } from "@/components/admin/bulk-delete-toolbar"
+import type { Payment } from "./columns"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -66,10 +70,16 @@ export function DataTable<TData, TValue>({
   ])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = React.useState("")
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
+
+  const columnsWithSelection = React.useMemo(
+    () => [selectionColumn<TData>() as ColumnDef<TData, TValue>, ...columns],
+    [columns]
+  )
 
   const table = useReactTable({
     data,
-    columns,
+    columns: columnsWithSelection,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     onSortingChange: setSorting,
@@ -78,6 +88,8 @@ export function DataTable<TData, TValue>({
     getFilteredRowModel: getFilteredRowModel(),
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: globalFilterFn,
+    onRowSelectionChange: setRowSelection,
+    enableRowSelection: true,
     initialState: {
       pagination: {
         pageSize: 10,
@@ -87,8 +99,23 @@ export function DataTable<TData, TValue>({
       sorting,
       columnFilters,
       globalFilter,
+      rowSelection,
     },
   })
+
+  const handleBulkDelete = async (row: TData) => {
+    const userId = (row as unknown as Payment).user_id
+    const res = await fetch('/api/delete-user', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    })
+    const { error } = await res.json()
+    if (error) {
+      toast.error(error, { position: 'top-center' })
+      throw new Error(error)
+    }
+  }
 
   return (
     <div>
@@ -101,6 +128,13 @@ export function DataTable<TData, TValue>({
           className="max-w-sm"
         />
       </div>
+
+      <BulkDeleteToolbar
+        table={table}
+        entityLabel="user"
+        onDelete={handleBulkDelete}
+        className="mb-3"
+      />
 
       <div className="overflow-hidden rounded-md border">
         <Table>
@@ -138,7 +172,7 @@ export function DataTable<TData, TValue>({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell colSpan={columnsWithSelection.length} className="h-24 text-center">
                   No results.
                 </TableCell>
               </TableRow>

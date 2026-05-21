@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { DeleteConfirmDialog } from '@/components/admin/delete-confirm-dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { RotateCcw, History, ChartBarIcon, ChevronDown } from 'lucide-react'
+import { RotateCcw, History, ChartBarIcon, ChevronDown, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 
 interface MemberScoreSummary {
   user_id: string
@@ -77,9 +77,52 @@ export default function AdminScoresPage() {
   const [resetHistory, setResetHistory] = useState<ResetLogRow[]>([])
   const [historyOpen, setHistoryOpen] = useState(false)
   const [eventScores, setEventScores] = useState<EventScoreRow[]>([])
+  const [eventSortBy, setEventSortBy] = useState<'name' | 'status' | 'date' | 'responses' | 'score'>('score')
+  const [eventSortDir, setEventSortDir] = useState<'asc' | 'desc'>('desc')
   const [expandedCycleId, setExpandedCycleId] = useState<string | null>(null)
   const [cycleDetails, setCycleDetails] = useState<Record<string, HistoryDetailRow[]>>({})
   const [cycleDetailsLoading, setCycleDetailsLoading] = useState<Record<string, boolean>>({})
+
+  const handleEventSort = (key: typeof eventSortBy) => {
+    if (eventSortBy === key) {
+      setEventSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setEventSortBy(key)
+      setEventSortDir(key === 'name' || key === 'status' ? 'asc' : 'desc')
+    }
+  }
+
+  const sortedEventScores = useMemo(() => {
+    const dir = eventSortDir === 'asc' ? 1 : -1
+    const compareNumberWithNull = (a: number | null, b: number | null) => {
+      if (a === b) return 0
+      if (a === null) return 1
+      if (b === null) return -1
+      return a - b
+    }
+    return [...eventScores].sort((a, b) => {
+      switch (eventSortBy) {
+        case 'name':
+          return dir * a.name.localeCompare(b.name)
+        case 'status':
+          return dir * (a.status ?? '').localeCompare(b.status ?? '')
+        case 'date':
+          return dir * (a.date_start ?? '').localeCompare(b.date_start ?? '')
+        case 'responses':
+          return dir * (a.response_count - b.response_count)
+        case 'score':
+        default:
+          return dir * compareNumberWithNull(a.event_eval_score, b.event_eval_score)
+      }
+    })
+  }, [eventScores, eventSortBy, eventSortDir])
+
+  const SortIcon = ({ active }: { active: boolean }) => {
+    if (!active) return <ArrowUpDown className="size-3.5 text-muted-foreground/60" />
+    return eventSortDir === 'asc'
+      ? <ArrowUp className="size-3.5" />
+      : <ArrowDown className="size-3.5" />
+  }
 
   useEffect(() => {
     fetchScores()
@@ -325,41 +368,84 @@ export default function AdminScoresPage() {
                   <thead className="bg-muted">
                     <tr>
                       <th className="px-4 py-3 text-left font-medium w-16">Rank</th>
-                      <th className="px-4 py-3 text-left font-medium">Event</th>
-                      <th className="px-4 py-3 text-left font-medium">Status</th>
-                      <th className="px-4 py-3 text-left font-medium">Date</th>
-                      <th className="px-4 py-3 text-left font-medium">Responses</th>
-                      <th className="px-4 py-3 text-left font-medium">Avg Score</th>
+                      <th className="px-4 py-3 text-left font-medium">
+                        <button
+                          type="button"
+                          onClick={() => handleEventSort('name')}
+                          className="inline-flex items-center gap-1.5 hover:text-foreground"
+                        >
+                          Event
+                          <SortIcon active={eventSortBy === 'name'} />
+                        </button>
+                      </th>
+                      <th className="px-4 py-3 text-left font-medium">
+                        <button
+                          type="button"
+                          onClick={() => handleEventSort('status')}
+                          className="inline-flex items-center gap-1.5 hover:text-foreground"
+                        >
+                          Status
+                          <SortIcon active={eventSortBy === 'status'} />
+                        </button>
+                      </th>
+                      <th className="px-4 py-3 text-left font-medium">
+                        <button
+                          type="button"
+                          onClick={() => handleEventSort('date')}
+                          className="inline-flex items-center gap-1.5 hover:text-foreground"
+                        >
+                          Date
+                          <SortIcon active={eventSortBy === 'date'} />
+                        </button>
+                      </th>
+                      <th className="px-4 py-3 text-left font-medium">
+                        <button
+                          type="button"
+                          onClick={() => handleEventSort('responses')}
+                          className="inline-flex items-center gap-1.5 hover:text-foreground"
+                        >
+                          Responses
+                          <SortIcon active={eventSortBy === 'responses'} />
+                        </button>
+                      </th>
+                      <th className="px-4 py-3 text-left font-medium">
+                        <button
+                          type="button"
+                          onClick={() => handleEventSort('score')}
+                          className="inline-flex items-center gap-1.5 hover:text-foreground"
+                        >
+                          Avg Score
+                          <SortIcon active={eventSortBy === 'score'} />
+                        </button>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {eventScores.length === 0 ? (
+                    {sortedEventScores.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-4 py-3 text-center text-muted-foreground">
                           No events with scores yet.
                         </td>
                       </tr>
                     ) : (
-                      [...eventScores]
-                        .sort((a, b) => (b.event_eval_score ?? -1) - (a.event_eval_score ?? -1))
-                        .map((row, i) => (
-                          <tr key={row.id} className="border-t hover:bg-muted/50">
-                            <td className="px-4 py-3 font-semibold text-muted-foreground">#{i + 1}</td>
-                            <td className="px-4 py-3 font-medium capitalize">{row.name}</td>
-                            <td className="px-4 py-3">
-                              <Badge variant={row.status === 'done' ? 'secondary' : 'default'}>
-                                {row.status ?? 'ongoing'}
-                              </Badge>
-                            </td>
-                            <td className="px-4 py-3 text-muted-foreground">
-                              {row.date_start ? new Date(row.date_start).toLocaleDateString() : '—'}
-                            </td>
-                            <td className="px-4 py-3">{row.response_count}</td>
-                            <td className="px-4 py-3 font-bold">
-                              {row.event_eval_score !== null ? `${row.event_eval_score.toFixed(2)} / 10` : '—'}
-                            </td>
-                          </tr>
-                        ))
+                      sortedEventScores.map((row, i) => (
+                        <tr key={row.id} className="border-t hover:bg-muted/50">
+                          <td className="px-4 py-3 font-semibold text-muted-foreground">#{i + 1}</td>
+                          <td className="px-4 py-3 font-medium capitalize">{row.name}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant={row.status === 'done' ? 'secondary' : 'default'}>
+                              {row.status ?? 'ongoing'}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">
+                            {row.date_start ? new Date(row.date_start).toLocaleDateString() : '—'}
+                          </td>
+                          <td className="px-4 py-3">{row.response_count}</td>
+                          <td className="px-4 py-3 font-bold">
+                            {row.event_eval_score !== null ? `${row.event_eval_score.toFixed(2)} / 10` : '—'}
+                          </td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
                   {eventScores.length > 0 && (() => {

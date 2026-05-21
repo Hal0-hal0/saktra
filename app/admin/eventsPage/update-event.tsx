@@ -1,5 +1,5 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   Field,
   FieldGroup,
@@ -29,6 +29,9 @@ import {
 } from "@/components/ui/dialog"
 import { DiscardChangesAlert } from "@/components/ui/discard-changes-alert"
 import { useUnsavedChangesGuard } from "@/lib/use-unsaved-changes-guard"
+import { Label } from "@/components/ui/label"
+import { UserSearchSelect, type SelectableProfile } from "@/components/admin/user-search-select"
+import { supabase } from "@/lib/supabase/supabase-client"
 
 type Event = {
   id: string
@@ -40,6 +43,8 @@ type Event = {
   date_end: string
   time_start: string
   time_end: string
+  event_chair_id?: string | null
+  vc_id?: string | null
 }
 
 const UpdateEvent = ({ children, event }: {
@@ -58,10 +63,26 @@ const UpdateEvent = ({ children, event }: {
   )
   const [timeStart, setTimeStart] = useState(event?.time_start ?? '')
   const [timeEnd, setTimeEnd] = useState(event?.time_end ?? '')
+  const [eventChairId, setEventChairId] = useState(event?.event_chair_id ?? '')
+  const [vcId, setVcId] = useState(event?.vc_id ?? '')
+  const [profiles, setProfiles] = useState<SelectableProfile[]>([])
   const [submit, setSubmit] = useState(false)
   const [open, setOpen] = useState(false)
   const [openStart, setOpenStart] = useState(false)
   const [openEnd, setOpenEnd] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    const fetchProfiles = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('user_id, user_name, email, first_name, last_name')
+        .eq('status', 'active')
+        .order('user_name', { ascending: true })
+      setProfiles((data ?? []) as SelectableProfile[])
+    }
+    fetchProfiles()
+  }, [open])
 
   const initialState = {
     name: event?.name ?? '',
@@ -72,6 +93,8 @@ const UpdateEvent = ({ children, event }: {
     dateEnd: event?.date_end ? parse(event.date_end, 'yyyy-MM-dd', new Date()) : undefined,
     timeStart: event?.time_start ?? '',
     timeEnd: event?.time_end ?? '',
+    eventChairId: event?.event_chair_id ?? '',
+    vcId: event?.vc_id ?? '',
   }
 
   const resetForm = () => {
@@ -83,6 +106,8 @@ const UpdateEvent = ({ children, event }: {
     setDateEnd(initialState.dateEnd)
     setTimeStart(initialState.timeStart)
     setTimeEnd(initialState.timeEnd)
+    setEventChairId(initialState.eventChairId)
+    setVcId(initialState.vcId)
     setSubmit(false)
     setOpenStart(false)
     setOpenEnd(false)
@@ -97,7 +122,9 @@ const UpdateEvent = ({ children, event }: {
     dateStart?.getTime() !== initialState.dateStart?.getTime() ||
     dateEnd?.getTime() !== initialState.dateEnd?.getTime() ||
     timeStart !== initialState.timeStart ||
-    timeEnd !== initialState.timeEnd
+    timeEnd !== initialState.timeEnd ||
+    eventChairId !== initialState.eventChairId ||
+    vcId !== initialState.vcId
 
   const {
     cancelDiscard,
@@ -143,6 +170,18 @@ const UpdateEvent = ({ children, event }: {
       return
     }
 
+    if (!eventChairId || !vcId) {
+      toast.error('Event Chair and Vice Chair are required', { position: 'top-center' })
+      setSubmit(false)
+      return
+    }
+
+    if (eventChairId === vcId) {
+      toast.error('Event Chair and Vice Chair must be different members', { position: 'top-center' })
+      setSubmit(false)
+      return
+    }
+
     const res = await fetch('/api/update-event', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -156,6 +195,8 @@ const UpdateEvent = ({ children, event }: {
         date_end: format(dateEnd, 'yyyy-MM-dd'),
         time_start: timeStart,
         time_end: timeEnd,
+        event_chair_id: eventChairId,
+        vc_id: vcId,
       })
     })
 
@@ -200,6 +241,28 @@ const UpdateEvent = ({ children, event }: {
             <FieldLabel>Venue</FieldLabel>
             <Input value={venue} onChange={(e) => setVenue(e.target.value)} />
           </Field>
+          <div className="flex flex-row gap-5">
+            <Field className="flex-1">
+              <Label>Event Chair <span className="text-destructive">*</span></Label>
+              <UserSearchSelect
+                value={eventChairId}
+                onValueChange={setEventChairId}
+                profiles={profiles.filter((p) => p.user_id !== vcId)}
+                placeholder="Search event chair..."
+                emptyText="No active members found."
+              />
+            </Field>
+            <Field className="flex-1">
+              <Label>Vice Chair <span className="text-destructive">*</span></Label>
+              <UserSearchSelect
+                value={vcId}
+                onValueChange={setVcId}
+                profiles={profiles.filter((p) => p.user_id !== eventChairId)}
+                placeholder="Search vice chair..."
+                emptyText="No active members found."
+              />
+            </Field>
+          </div>
           <div className="flex flex-row gap-5">
             <Field>
               <FieldLabel>Date</FieldLabel>

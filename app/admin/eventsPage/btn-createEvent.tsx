@@ -28,13 +28,7 @@ import {
 import { DiscardChangesAlert } from "@/components/ui/discard-changes-alert"
 import { useUnsavedChangesGuard } from "@/lib/use-unsaved-changes-guard"
 import { EventProvider, useEvent } from "./event-provider"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { UserSearchSelect, type SelectableProfile } from "@/components/admin/user-search-select"
 import { supabase } from "@/lib/supabase/supabase-client"
 
 export function ButtonCreateEvent() {
@@ -52,12 +46,16 @@ export function ButtonCreateEvent() {
   const [submit, setSubmit] = useState(false)
   const [open, setOpen] = useState(false)
   const [openEnd, setOpenEnd] = useState(false)
-  const [profiles, setProfiles] = useState<any[]>([])
+  const [profiles, setProfiles] = useState<SelectableProfile[]>([])
 
   useEffect(() => {
     const fetchProfiles = async () => {
-      const { data } = await supabase.from('profiles').select('*')
-      setProfiles(data || [])
+      const { data } = await supabase
+        .from('profiles')
+        .select('user_id, user_name, email, first_name, last_name')
+        .eq('status', 'active')
+        .order('user_name', { ascending: true })
+      setProfiles((data ?? []) as SelectableProfile[])
     }
     fetchProfiles()
   }, [])
@@ -133,6 +131,18 @@ export function ButtonCreateEvent() {
       return
     }
 
+    if (!eventChairId || !vcId) {
+      toast.error('Event Chair and Vice Chair are required', { position: 'top-center' })
+      setSubmit(false)
+      return
+    }
+
+    if (eventChairId === vcId) {
+      toast.error('Event Chair and Vice Chair must be different members', { position: 'top-center' })
+      setSubmit(false)
+      return
+    }
+
     const res = await fetch('/api/create-event', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -145,8 +155,8 @@ export function ButtonCreateEvent() {
         venue,
         time_start: timeStart,
         time_end: timeEnd,
-        event_chair_id: eventChairId || null,
-        vc_id: vcId || null,
+        event_chair_id: eventChairId,
+        vc_id: vcId,
       })
     })
     const { error } = await res.json()
@@ -208,42 +218,24 @@ export function ButtonCreateEvent() {
           </Field>
           <div className="flex flex-row gap-5">
             <Field className="flex-1">
-              <Label>Event Chair (Optional)</Label>
-              <Select
-                value={eventChairId || "__none__"}
-                onValueChange={(value) => setEventChairId(value === "__none__" ? "" : value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select event chair..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">No event chair</SelectItem>
-                  {profiles.map((profile) => (
-                    <SelectItem key={profile.user_id} value={profile.user_id}>
-                      {profile.user_name || profile.email || "Unnamed"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Event Chair <span className="text-destructive">*</span></Label>
+              <UserSearchSelect
+                value={eventChairId}
+                onValueChange={setEventChairId}
+                profiles={profiles.filter((p) => p.user_id !== vcId)}
+                placeholder="Search event chair..."
+                emptyText="No active members found."
+              />
             </Field>
             <Field className="flex-1">
-              <Label>Vice Chair (Optional)</Label>
-              <Select
-                value={vcId || "__none__"}
-                onValueChange={(value) => setVcId(value === "__none__" ? "" : value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select vice chair..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">No vice chair</SelectItem>
-                  {profiles.map((profile) => (
-                    <SelectItem key={profile.user_id} value={profile.user_id}>
-                      {profile.user_name || profile.email || "Unnamed"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Vice Chair <span className="text-destructive">*</span></Label>
+              <UserSearchSelect
+                value={vcId}
+                onValueChange={setVcId}
+                profiles={profiles.filter((p) => p.user_id !== eventChairId)}
+                placeholder="Search vice chair..."
+                emptyText="No active members found."
+              />
             </Field>
           </div>
           <div className="flex flex-row gap-5">

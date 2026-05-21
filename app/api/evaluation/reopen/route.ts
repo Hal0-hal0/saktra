@@ -29,11 +29,20 @@ export async function PATCH(request: Request) {
     return auth.error
   }
 
-  const { eventId, evaluationDeadline } = await request.json()
-  const eventIdNumber = Number(eventId)
+  const body = await request.json()
+  const { eventId, eventIds, evaluationDeadline } = body as {
+    eventId?: string | number
+    eventIds?: Array<string | number>
+    evaluationDeadline?: string
+  }
 
-  if (!eventId || Number.isNaN(eventIdNumber)) {
-    return Response.json({ error: "Event is required." }, { status: 400 })
+  const rawIds = Array.isArray(eventIds) && eventIds.length ? eventIds : eventId !== undefined ? [eventId] : []
+  const eventIdNumbers = rawIds
+    .map((id) => Number(id))
+    .filter((id) => !Number.isNaN(id))
+
+  if (eventIdNumbers.length === 0) {
+    return Response.json({ error: "At least one event is required." }, { status: 400 })
   }
 
   if (!evaluationDeadline) {
@@ -46,11 +55,11 @@ export async function PATCH(request: Request) {
       evaluation_open: true,
       evaluation_deadline: evaluationDeadline,
     })
-    .eq("id", eventIdNumber)
+    .in("id", eventIdNumbers)
 
   if (error) {
     return Response.json({ error: error.message }, { status: 400 })
   }
 
-  return Response.json({ success: true })
+  return Response.json({ success: true, count: eventIdNumbers.length })
 }

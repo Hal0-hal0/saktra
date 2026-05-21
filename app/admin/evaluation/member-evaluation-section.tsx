@@ -137,6 +137,8 @@ export default function MemberEvaluationSection() {
   const [eventPickerSort, setEventPickerSort] = useState<EventSortKey>("date-desc")
   const [memberSort, setMemberSort] = useState<MemberSortKey>("name-asc")
   const [collapsedClosed, setCollapsedClosed] = useState<Set<string>>(new Set())
+  const [statusFilter, setStatusFilter] = useState<"all" | "open" | "closed">("all")
+  const [memberStatusFilter, setMemberStatusFilter] = useState<"all" | "active" | "inactive">("all")
 
   const toggleClosedCollapse = (id: string) => {
     setCollapsedClosed((prev) => {
@@ -283,11 +285,15 @@ export default function MemberEvaluationSection() {
   const visibleProfiles = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
 
+    const byStatus = memberStatusFilter === "all"
+      ? evaluableProfiles
+      : evaluableProfiles.filter((profile) => (profile.status ?? "active") === memberStatusFilter)
+
     if (!query) {
-      return evaluableProfiles
+      return byStatus
     }
 
-    return evaluableProfiles.filter((profile) => {
+    return byStatus.filter((profile) => {
       const searchable = [
         profile.user_name,
         profile.email,
@@ -302,7 +308,7 @@ export default function MemberEvaluationSection() {
 
       return searchable.includes(query)
     })
-  }, [evaluableProfiles, searchTerm])
+  }, [evaluableProfiles, searchTerm, memberStatusFilter])
 
   const selectedMember = useMemo(
     () => evaluableProfiles.find((profile) => profile.user_id === selectedMemberId) ?? null,
@@ -494,28 +500,47 @@ export default function MemberEvaluationSection() {
         </Card>
       </section>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-sm font-medium text-muted-foreground">Show:</p>
+        {([
+          { key: "all", label: `All (${openCycles.length + closedCycles.length})` },
+          { key: "open", label: `Open (${openCycles.length})` },
+          { key: "closed", label: `Closed (${closedCycles.length})` },
+        ] as const).map((option) => (
+          <Button
+            key={option.key}
+            type="button"
+            variant={statusFilter === option.key ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatusFilter(option.key)}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
+
+      {(statusFilter === "all" || statusFilter === "open") && (
       <section className="space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold">Open Member Evaluation</h2>
-            <p className="text-sm text-muted-foreground">
-              Users can evaluate members only while a member evaluation round is open.
-            </p>
-          </div>
-          {openCycles.length > 1 && (
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Sort by</p>
-              <Select value={openSort} onValueChange={(v) => setOpenSort(v as CycleSortKey)}>
-                <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {CYCLE_SORTS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+        <div>
+          <h2 className="text-lg font-semibold">Open Member Evaluation</h2>
+          <p className="text-sm text-muted-foreground">
+            Users can evaluate members only while a member evaluation round is open.
+          </p>
         </div>
+
+        {openCycles.length > 1 && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Sort by</p>
+            <Select value={openSort} onValueChange={(v) => setOpenSort(v as CycleSortKey)}>
+              <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {CYCLE_SORTS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {openCycles.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2">
@@ -577,27 +602,28 @@ export default function MemberEvaluationSection() {
           </div>
         )}
       </section>
+      )}
 
+      {(statusFilter === "all" || statusFilter === "closed") && (
       <section className="space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold">Closed Member Evaluations</h2>
-            <p className="text-sm text-muted-foreground">Review previous member evaluation rounds.</p>
-          </div>
-          {closedCycles.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Sort by</p>
-              <Select value={closedSort} onValueChange={(v) => setClosedSort(v as CycleSortKey)}>
-                <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {CYCLE_SORTS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+        <div>
+          <h2 className="text-lg font-semibold">Closed Member Evaluations</h2>
+          <p className="text-sm text-muted-foreground">Review previous member evaluation rounds.</p>
         </div>
+
+        {closedCycles.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Sort by</p>
+            <Select value={closedSort} onValueChange={(v) => setClosedSort(v as CycleSortKey)}>
+              <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {CYCLE_SORTS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {closedCycles.length === 0 ? (
           <div className="rounded-[24px] border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
@@ -661,6 +687,7 @@ export default function MemberEvaluationSection() {
           </div>
         )}
       </section>
+      )}
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
         <Card className="min-h-[460px]">
@@ -669,8 +696,33 @@ export default function MemberEvaluationSection() {
               <CardTitle>Members</CardTitle>
               <CardDescription>Select a member to view their evaluation summary.</CardDescription>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative flex-1 min-w-[180px]">
+            <div className="space-y-2">
+              <Select value={memberSort} onValueChange={(v) => setMemberSort(v as MemberSortKey)}>
+                <SelectTrigger className="w-full sm:w-52"><SelectValue placeholder="Sort by" /></SelectTrigger>
+                <SelectContent>
+                  {MEMBER_SORTS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex flex-wrap items-center gap-2">
+                {([
+                  { key: "all", label: `All (${evaluableProfiles.length})` },
+                  { key: "active", label: `Active (${evaluableProfiles.filter((p) => (p.status ?? "active") === "active").length})` },
+                  { key: "inactive", label: `Inactive (${evaluableProfiles.filter((p) => p.status === "inactive").length})` },
+                ] as const).map((option) => (
+                  <Button
+                    key={option.key}
+                    type="button"
+                    variant={memberStatusFilter === option.key ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setMemberStatusFilter(option.key)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+              <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={searchTerm}
@@ -679,14 +731,6 @@ export default function MemberEvaluationSection() {
                   onChange={(event) => setSearchTerm(event.target.value)}
                 />
               </div>
-              <Select value={memberSort} onValueChange={(v) => setMemberSort(v as MemberSortKey)}>
-                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {MEMBER_SORTS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
           </CardHeader>
 

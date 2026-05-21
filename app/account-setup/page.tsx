@@ -131,9 +131,9 @@ export default function AccountSetup() {
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    // Phone fields: digits only.
+    // Phone fields: digits only, capped at 11.
     if (name === 'phone' || name === 'contact_person_phone') {
-      setForm(prev => ({ ...prev, [name]: value.replace(/\D/g, '') }));
+      setForm(prev => ({ ...prev, [name]: value.replace(/\D/g, '').slice(0, 11) }));
       return;
     }
     setForm(prev => ({ ...prev, [name]: value }));
@@ -160,7 +160,7 @@ export default function AccountSetup() {
       if (!form.user_name.trim()) { toast.error('Username is required'); return false; }
       if (usernameStatus === 'taken') { toast.error('Username is already taken'); return false; }
       if (!form.phone.trim()) { toast.error('Phone number is required'); return false; }
-      if (!/^\d{7,15}$/.test(form.phone)) { toast.error('Phone must be 7–15 digits'); return false; }
+      if (!/^(09\d{9}|9\d{9})$/.test(form.phone)) { toast.error('Phone must be 09xxxxxxxxx (11 digits) or 9xxxxxxxxx (10 digits)'); return false; }
       if (!form.birthday) { toast.error('Birthday is required'); return false; }
       if (form.birthday >= TODAY_ISO) { toast.error('Birthday must be in the past'); return false; }
       if (!form.home_address.trim()) { toast.error('Home address is required'); return false; }
@@ -170,7 +170,7 @@ export default function AccountSetup() {
       if (!form.contact_person.trim()) { toast.error('Emergency contact name is required'); return false; }
       if (!form.contact_person_relationship.trim()) { toast.error('Relationship is required'); return false; }
       if (!form.contact_person_phone.trim()) { toast.error('Emergency contact number is required'); return false; }
-      if (!/^\d{7,15}$/.test(form.contact_person_phone)) { toast.error('Contact phone must be 7–15 digits'); return false; }
+      if (!/^(09\d{9}|9\d{9})$/.test(form.contact_person_phone)) { toast.error('Contact phone must be 09xxxxxxxxx (11 digits) or 9xxxxxxxxx (10 digits)'); return false; }
     }
     if (currentStep === 3) {
       if (!form.new_password) { toast.error('Password is required'); return false; }
@@ -371,11 +371,12 @@ export default function AccountSetup() {
                     autoComplete="tel-national"
                     value={form.phone}
                     onChange={handleChange}
-                    placeholder="9171234567"
+                    maxLength={11}
+                    placeholder="9171234567 or 09171234567"
                     className="field-input flex-1 min-w-0"
                   />
                 </div>
-                <p className="text-[10px] text-zinc-400 mt-1">Select your country code on the left, then type your number (digits only).</p>
+                <p className="text-[10px] text-zinc-400 mt-1">Type either 9xxxxxxxxx (with +63) or 09xxxxxxxxx — digits only.</p>
               </FieldRow>
               <FieldRow icon={<Calendar className="w-4 h-4 text-violet-500" />} label="Birthday">
                 <input name="birthday" type="date" value={form.birthday} onChange={handleChange}
@@ -439,10 +440,12 @@ export default function AccountSetup() {
                     autoComplete="tel-national"
                     value={form.contact_person_phone}
                     onChange={handleChange}
-                    placeholder="9171234567"
+                    maxLength={11}
+                    placeholder="9171234567 or 09171234567"
                     className="field-input flex-1 min-w-0"
                   />
                 </div>
+                <p className="text-[10px] text-zinc-400 mt-1">Type either 9xxxxxxxxx (with +63) or 09xxxxxxxxx — digits only.</p>
               </FieldRow>
             </div>
           )}

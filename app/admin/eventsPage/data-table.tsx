@@ -1,11 +1,13 @@
 "use client"
 import * as React from "react"
+import { toast } from "sonner"
 
 import {
   ColumnDef,
   ColumnFiltersState,
   getFilteredRowModel,
   flexRender,
+  RowSelectionState,
   SortingState,
   getSortedRowModel,
   getCoreRowModel,
@@ -24,6 +26,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ButtonCreateEvent } from "./btn-createEvent"
+import { BulkDeleteToolbar, selectionColumn } from "@/components/admin/bulk-delete-toolbar"
+import type { Event } from "./columns"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -44,26 +48,49 @@ export function DataTable<TData, TValue>({
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
         []
     )
- 
+    const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
+
+    const columnsWithSelection = React.useMemo(
+      () => [selectionColumn<TData>() as ColumnDef<TData, TValue>, ...columns],
+      [columns]
+    )
+
   const table = useReactTable({
     data,
-    columns,
+    columns: columnsWithSelection,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
+    onRowSelectionChange: setRowSelection,
+    enableRowSelection: true,
     initialState: {
         pagination: {
-        pageSize: 10, 
+        pageSize: 10,
         },
     },
     state: {
       sorting,
       columnFilters,
+      rowSelection,
     }
   })
+
+  const handleBulkDelete = async (row: TData) => {
+    const id = (row as unknown as Event).id
+    const res = await fetch('/api/delete-event', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    })
+    const { error } = await res.json()
+    if (error) {
+      toast.error(error, { position: 'top-center' })
+      throw new Error(error)
+    }
+  }
 
   return (
     <div>
@@ -78,6 +105,13 @@ export function DataTable<TData, TValue>({
             className="max-w-sm"
             />
         </div>
+
+        <BulkDeleteToolbar
+          table={table}
+          entityLabel="event"
+          onDelete={handleBulkDelete}
+          className="mb-3"
+        />
 
         <div className="overflow-hidden rounded-md border">
         <Table>
@@ -115,7 +149,7 @@ export function DataTable<TData, TValue>({
                 ))
             ) : (
                 <TableRow>
-                <TableCell colSpan={columns?.length ?? 0} className="h-24 text-center">
+                <TableCell colSpan={columnsWithSelection.length} className="h-24 text-center">
                     No results.
                 </TableCell>
                 </TableRow>

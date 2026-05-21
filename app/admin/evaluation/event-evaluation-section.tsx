@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { format } from "date-fns"
-import { CalendarDays, ChartColumnBig, ChevronDown, ChevronUp, ClipboardCheck, DoorClosed, Eye, RotateCcw } from "lucide-react"
+import { CalendarDays, ChartColumnBig, ChevronDown, ChevronUp, ClipboardCheck, DoorClosed, Eye, RotateCcw, Users as UsersIcon } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -73,6 +73,13 @@ type AdminAnswer = {
   answer_text: string | null
 }
 
+type AdminProfile = {
+  user_id: string
+  user_name: string | null
+  department: string | null
+  position: string | null
+}
+
 type AdminResponse = {
   id: string
   user_id: string
@@ -80,6 +87,7 @@ type AdminResponse = {
   status: string | null
   created_at: string
   answers: AdminAnswer[]
+  profile?: AdminProfile | null
 }
 
 type AdminEvent = {
@@ -133,8 +141,8 @@ export default function EventEvaluationSection() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [reopenOpen, setReopenOpen] = useState(false)
-  const [selectedPickerEventId, setSelectedPickerEventId] = useState("")
-  const [selectedReopenEventId, setSelectedReopenEventId] = useState("")
+  const [selectedPickerEventIds, setSelectedPickerEventIds] = useState<Set<string>>(new Set())
+  const [selectedReopenEventIds, setSelectedReopenEventIds] = useState<Set<string>>(new Set())
   const [evaluationDeadline, setEvaluationDeadline] = useState("")
   const [reopenDeadline, setReopenDeadline] = useState("")
   const [loading, setLoading] = useState(true)
@@ -145,6 +153,25 @@ export default function EventEvaluationSection() {
   const [reopenSort, setReopenSort] = useState<SortKey>("date-desc")
   const [closedSort, setClosedSort] = useState<SortKey>("date-desc")
   const [collapsedClosed, setCollapsedClosed] = useState<Set<string>>(new Set())
+  const [statusFilter, setStatusFilter] = useState<"all" | "open" | "closed">("all")
+
+  const togglePickerSelection = (id: string) => {
+    setSelectedPickerEventIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleReopenSelection = (id: string) => {
+    setSelectedReopenEventIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const toggleClosedCollapse = (id: string) => {
     setCollapsedClosed((prev) => {
@@ -170,15 +197,11 @@ export default function EventEvaluationSection() {
 
       const nextOpenEvents = (data.events ?? []).filter((event) => event.evaluation_open)
       const nextSelected = selectedEventId || nextOpenEvents[0]?.id || data.events?.[0]?.id || ""
-      const firstFresh = (data.events ?? []).find((event) => !event.evaluation_open && !isAlreadyEvaluated(event))
-      const firstReopenable = (data.events ?? []).find((event) => !event.evaluation_open && isAlreadyEvaluated(event))
 
       setEvents(data.events ?? [])
       setCriteria(data.criteria ?? [])
       setResponses(data.responses ?? [])
       setSelectedEventId(nextSelected)
-      setSelectedPickerEventId(firstFresh?.id || "")
-      setSelectedReopenEventId(firstReopenable?.id || "")
       setLoading(false)
     }
 
@@ -198,6 +221,26 @@ export default function EventEvaluationSection() {
     () => events.find((event) => event.id === selectedEventId) ?? null,
     [events, selectedEventId]
   )
+
+  const selectedEvaluators = useMemo(() => {
+    const seen = new Set<string>()
+    const rows: { user_id: string; name: string; department: string | null; position: string | null; created_at: string }[] = []
+    responses
+      .filter((response) => response.event_id === selectedEventId)
+      .forEach((response) => {
+        if (seen.has(response.user_id)) return
+        seen.add(response.user_id)
+        const name = response.profile?.user_name?.trim() || "Anonymous member"
+        rows.push({
+          user_id: response.user_id,
+          name,
+          department: response.profile?.department ?? null,
+          position: response.profile?.position ?? null,
+          created_at: response.created_at,
+        })
+      })
+    return rows
+  }, [responses, selectedEventId])
 
   const criterionAverages = useMemo<CriterionAverage[]>(() => {
     const selectedResponses = responses.filter((response) => response.event_id === selectedEventId)
@@ -232,8 +275,9 @@ export default function EventEvaluationSection() {
   }, [criteria, responses, selectedEventId])
 
   const openEvaluation = async () => {
-    if (!selectedPickerEventId || !evaluationDeadline) {
-      toast.error("Pick an event and set a close date.", { position: "top-center" })
+    const ids = Array.from(selectedPickerEventIds)
+    if (ids.length === 0 || !evaluationDeadline) {
+      toast.error("Pick at least one event and set a close date.", { position: "top-center" })
       return
     }
 
@@ -241,7 +285,7 @@ export default function EventEvaluationSection() {
     const res = await fetch("/api/evaluation/open", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eventId: selectedPickerEventId, evaluationDeadline }),
+      body: JSON.stringify({ eventIds: ids, evaluationDeadline }),
     })
     const data = await res.json()
     setPendingAction(null)
@@ -253,14 +297,19 @@ export default function EventEvaluationSection() {
 
     setPickerOpen(false)
     setEvaluationDeadline("")
-    setSelectedEventId(selectedPickerEventId)
+    setSelectedEventId(ids[0])
+    setSelectedPickerEventIds(new Set())
     setRefreshKey((value) => value + 1)
-    toast.success("Evaluation opened successfully.", { position: "top-center" })
+    toast.success(
+      ids.length === 1 ? "Evaluation opened successfully." : `${ids.length} evaluations opened successfully.`,
+      { position: "top-center" }
+    )
   }
 
   const reopenEvaluation = async () => {
-    if (!selectedReopenEventId || !reopenDeadline) {
-      toast.error("Pick an event and set a close date.", { position: "top-center" })
+    const ids = Array.from(selectedReopenEventIds)
+    if (ids.length === 0 || !reopenDeadline) {
+      toast.error("Pick at least one event and set a close date.", { position: "top-center" })
       return
     }
 
@@ -268,7 +317,7 @@ export default function EventEvaluationSection() {
     const res = await fetch("/api/evaluation/reopen", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eventId: selectedReopenEventId, evaluationDeadline: reopenDeadline }),
+      body: JSON.stringify({ eventIds: ids, evaluationDeadline: reopenDeadline }),
     })
     const data = await res.json()
     setPendingAction(null)
@@ -280,9 +329,13 @@ export default function EventEvaluationSection() {
 
     setReopenOpen(false)
     setReopenDeadline("")
-    setSelectedEventId(selectedReopenEventId)
+    setSelectedEventId(ids[0])
+    setSelectedReopenEventIds(new Set())
     setRefreshKey((value) => value + 1)
-    toast.success("Evaluation reopened successfully.", { position: "top-center" })
+    toast.success(
+      ids.length === 1 ? "Evaluation reopened successfully." : `${ids.length} evaluations reopened successfully.`,
+      { position: "top-center" }
+    )
   }
 
   const closeEvaluation = async () => {
@@ -330,9 +383,9 @@ export default function EventEvaluationSection() {
               </DialogTrigger>
               <DialogContent className="!max-w-6xl">
                 <DialogHeader>
-                  <DialogTitle>Open A Fresh Evaluation</DialogTitle>
+                  <DialogTitle>Open Fresh Evaluations</DialogTitle>
                   <DialogDescription>
-                    Only events that have not been evaluated yet appear here. Set the close date before opening.
+                    Pick one or more events that have not been evaluated yet. They all share the same close date.
                   </DialogDescription>
                 </DialogHeader>
 
@@ -342,17 +395,35 @@ export default function EventEvaluationSection() {
                       <p className="text-sm font-medium">Close date</p>
                       <Input type="date" value={evaluationDeadline} onChange={(event) => setEvaluationDeadline(event.target.value)} />
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">Sort by</p>
-                      <Select value={freshSort} onValueChange={(v) => setFreshSort(v as SortKey)}>
-                        <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {SORT_OPTIONS.map((o) => (
-                            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="flex items-end gap-2">
+                      {freshEvents.length > 0 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const allIds = new Set(freshEvents.map((e) => e.id))
+                            const allSelected = freshEvents.every((e) => selectedPickerEventIds.has(e.id))
+                            setSelectedPickerEventIds(allSelected ? new Set() : allIds)
+                          }}
+                        >
+                          {freshEvents.every((e) => selectedPickerEventIds.has(e.id)) ? "Clear all" : "Select all"}
+                        </Button>
+                      )}
+                      <Badge variant="outline">{selectedPickerEventIds.size} selected</Badge>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Sort by</p>
+                    <Select value={freshSort} onValueChange={(v) => setFreshSort(v as SortKey)}>
+                      <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {SORT_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="max-h-[60vh] overflow-y-auto pr-2">
@@ -363,18 +434,19 @@ export default function EventEvaluationSection() {
                         </div>
                       ) : (
                         sortEvents(freshEvents, freshSort).map((event) => {
-                          const active = selectedPickerEventId === event.id
+                          const active = selectedPickerEventIds.has(event.id)
 
                           return (
                             <button
                               key={event.id}
                               type="button"
+                              aria-pressed={active}
                               className={`rounded-2xl border p-4 text-left transition ${
                                 active
                                   ? "border-primary bg-primary/8 ring-2 ring-primary/20"
                                   : "border-border bg-card hover:border-primary/40 hover:bg-muted/40"
                               }`}
-                              onClick={() => setSelectedPickerEventId(event.id)}
+                              onClick={() => togglePickerSelection(event.id)}
                             >
                               <div className="flex items-start justify-between gap-3">
                                 <div>
@@ -401,9 +473,11 @@ export default function EventEvaluationSection() {
                   <Button type="button" variant="outline" onClick={() => setPickerOpen(false)}>
                     Cancel
                   </Button>
-                  <Button type="button" onClick={openEvaluation} disabled={pendingAction !== null || !selectedPickerEventId || !evaluationDeadline}>
+                  <Button type="button" onClick={openEvaluation} disabled={pendingAction !== null || selectedPickerEventIds.size === 0 || !evaluationDeadline}>
                     {pendingAction === "open" && <Spinner data-icon="inline-start" />}
-                    Open Selected Event
+                    {selectedPickerEventIds.size <= 1
+                      ? "Open Selected Event"
+                      : `Open ${selectedPickerEventIds.size} Events`}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -417,9 +491,9 @@ export default function EventEvaluationSection() {
               </DialogTrigger>
               <DialogContent className="!max-w-6xl">
                 <DialogHeader>
-                  <DialogTitle>Reopen A Closed Evaluation</DialogTitle>
+                  <DialogTitle>Reopen Closed Evaluations</DialogTitle>
                   <DialogDescription>
-                    These events already have evaluation history. Reopening keeps them separate from the fresh opening flow.
+                    Pick one or more closed evaluations to reopen. They all share the same new close date.
                   </DialogDescription>
                 </DialogHeader>
 
@@ -429,17 +503,35 @@ export default function EventEvaluationSection() {
                       <p className="text-sm font-medium">New close date</p>
                       <Input type="date" value={reopenDeadline} onChange={(event) => setReopenDeadline(event.target.value)} />
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">Sort by</p>
-                      <Select value={reopenSort} onValueChange={(v) => setReopenSort(v as SortKey)}>
-                        <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {SORT_OPTIONS.map((o) => (
-                            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="flex items-end gap-2">
+                      {closedEvaluations.length > 0 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const allIds = new Set(closedEvaluations.map((e) => e.id))
+                            const allSelected = closedEvaluations.every((e) => selectedReopenEventIds.has(e.id))
+                            setSelectedReopenEventIds(allSelected ? new Set() : allIds)
+                          }}
+                        >
+                          {closedEvaluations.every((e) => selectedReopenEventIds.has(e.id)) ? "Clear all" : "Select all"}
+                        </Button>
+                      )}
+                      <Badge variant="outline">{selectedReopenEventIds.size} selected</Badge>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Sort by</p>
+                    <Select value={reopenSort} onValueChange={(v) => setReopenSort(v as SortKey)}>
+                      <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {SORT_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="max-h-[60vh] overflow-y-auto pr-2">
@@ -450,18 +542,19 @@ export default function EventEvaluationSection() {
                         </div>
                       ) : (
                         sortEvents(closedEvaluations, reopenSort).map((event) => {
-                          const active = selectedReopenEventId === event.id
+                          const active = selectedReopenEventIds.has(event.id)
 
                           return (
                             <button
                               key={event.id}
                               type="button"
+                              aria-pressed={active}
                               className={`rounded-2xl border p-4 text-left transition ${
                                 active
                                   ? "border-primary bg-primary/8 ring-2 ring-primary/20"
                                   : "border-border bg-card hover:border-primary/40 hover:bg-muted/40"
                               }`}
-                              onClick={() => setSelectedReopenEventId(event.id)}
+                              onClick={() => toggleReopenSelection(event.id)}
                             >
                               <div className="flex items-start justify-between gap-3">
                                 <div>
@@ -494,9 +587,11 @@ export default function EventEvaluationSection() {
                   <Button type="button" variant="outline" onClick={() => setReopenOpen(false)}>
                     Cancel
                   </Button>
-                  <Button type="button" onClick={reopenEvaluation} disabled={pendingAction !== null || !selectedReopenEventId || !reopenDeadline}>
+                  <Button type="button" onClick={reopenEvaluation} disabled={pendingAction !== null || selectedReopenEventIds.size === 0 || !reopenDeadline}>
                     {pendingAction === "reopen" && <Spinner data-icon="inline-start" />}
-                    Reopen Selected Event
+                    {selectedReopenEventIds.size <= 1
+                      ? "Reopen Selected Event"
+                      : `Reopen ${selectedReopenEventIds.size} Events`}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -511,6 +606,26 @@ export default function EventEvaluationSection() {
         </div>
       ) : (
         <>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium text-muted-foreground">Show:</p>
+            {([
+              { key: "all", label: `All (${openEvents.length + closedEvaluations.length})` },
+              { key: "open", label: `Open (${openEvents.length})` },
+              { key: "closed", label: `Closed (${closedEvaluations.length})` },
+            ] as const).map((option) => (
+              <Button
+                key={option.key}
+                type="button"
+                variant={statusFilter === option.key ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter(option.key)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+
+          {(statusFilter === "all" || statusFilter === "open") && (
           <section className="space-y-4">
             <div>
               <h2 className="text-lg font-semibold">Open Evaluations</h2>
@@ -567,29 +682,28 @@ export default function EventEvaluationSection() {
               </div>
             )}
           </section>
+          )}
 
+          {(statusFilter === "all" || statusFilter === "closed") && (
           <section className="space-y-4">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold">Closed Evaluations</h2>
-                <p className="text-sm text-muted-foreground">Review past evaluation rounds and reopen them from the dedicated reopen flow if needed.</p>
-              </div>
-              {closedEvaluations.length > 0 && (
-                <div className="flex items-end gap-2">
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">Sort by</p>
-                    <Select value={closedSort} onValueChange={(v) => setClosedSort(v as SortKey)}>
-                      <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {SORT_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
+            <div>
+              <h2 className="text-lg font-semibold">Closed Evaluations</h2>
+              <p className="text-sm text-muted-foreground">Review past evaluation rounds and reopen them from the dedicated reopen flow if needed.</p>
             </div>
+
+            {closedEvaluations.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Sort by</p>
+                <Select value={closedSort} onValueChange={(v) => setClosedSort(v as SortKey)}>
+                  <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {SORT_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {closedEvaluations.length === 0 ? (
               <div className="rounded-[24px] border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
@@ -650,7 +764,7 @@ export default function EventEvaluationSection() {
                               type="button"
                               variant="outline"
                               onClick={() => {
-                                setSelectedReopenEventId(event.id)
+                                setSelectedReopenEventIds(new Set([event.id]))
                                 setReopenOpen(true)
                               }}
                             >
@@ -666,6 +780,7 @@ export default function EventEvaluationSection() {
               </div>
             )}
           </section>
+          )}
         </>
       )}
 
@@ -721,6 +836,57 @@ export default function EventEvaluationSection() {
                   </p>
                 </div>
               </div>
+
+              <Card className="border-dashed">
+                <CardHeader>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <UsersIcon className="size-4" />
+                        Evaluated by
+                      </CardTitle>
+                      <CardDescription>
+                        Members who have already submitted an evaluation for this event.
+                      </CardDescription>
+                    </div>
+                    <Badge variant="outline">{selectedEvaluators.length} evaluator{selectedEvaluators.length === 1 ? "" : "s"}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {selectedEvaluators.length === 0 ? (
+                    <div className="rounded-xl border border-dashed px-6 py-6 text-center text-sm text-muted-foreground">
+                      No one has evaluated this event yet.
+                    </div>
+                  ) : (
+                    <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                      {selectedEvaluators.map((evaluator) => (
+                        <div
+                          key={evaluator.user_id}
+                          className="flex items-center gap-3 rounded-xl border bg-background/60 px-3 py-2"
+                        >
+                          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                            {evaluator.name
+                              .split(/\s+/)
+                              .filter(Boolean)
+                              .slice(0, 2)
+                              .map((part) => part.charAt(0).toUpperCase())
+                              .join("") || "?"}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">{evaluator.name}</p>
+                            <p className="truncate text-xs text-muted-foreground capitalize">
+                              {[evaluator.position, evaluator.department].filter(Boolean).join(" · ") || "No department"}
+                            </p>
+                          </div>
+                          <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">
+                            {format(new Date(evaluator.created_at), "MMM d")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               {criterionAverages.length === 0 || selectedEvent.response_count === 0 ? (
                 <div className="rounded-xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
