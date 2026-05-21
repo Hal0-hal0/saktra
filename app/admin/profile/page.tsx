@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { Camera, Edit3, Save, X, ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { UpdatePasswordDialog } from "@/components/profile/update-password-dialog";
 
 type Profile = {
   user_id: string;
@@ -110,7 +111,8 @@ export default function AdminProfilePage() {
     const today = new Date().toISOString().slice(0, 10);
     if (!(editData.first_name ?? '').toString().trim()) { toast.error('First name is required'); return; }
     if (!(editData.last_name ?? '').toString().trim()) { toast.error('Last name is required'); return; }
-    if (editData.phone && !/^\d{7,15}$/.test(String(editData.phone))) { toast.error('Phone must be 7-15 digits'); return; }
+    if (editData.phone && !/^(09\d{9}|9\d{9})$/.test(String(editData.phone))) { toast.error('Phone must be 09xxxxxxxxx (11 digits) or 9xxxxxxxxx (10 digits)'); return; }
+    if (editData.contact_person_phone && !/^(09\d{9}|9\d{9})$/.test(String(editData.contact_person_phone))) { toast.error('Contact phone must be 09xxxxxxxxx (11 digits) or 9xxxxxxxxx (10 digits)'); return; }
     if (editData.birthday && String(editData.birthday) >= today) { toast.error('Birthday must be in the past'); return; }
 
     setSaving(true);
@@ -223,7 +225,7 @@ export default function AdminProfilePage() {
                   <select
                     value={editData.phone_country_code ?? '+63'}
                     onChange={(e) => ch('phone_country_code', e.target.value)}
-                    className="profile-input w-28"
+                    className="profile-input !w-28 shrink-0"
                   >
                     {PROFILE_COUNTRY_CODES.map((c) => (
                       <option key={c.code} value={c.code}>{c.label}</option>
@@ -232,8 +234,9 @@ export default function AdminProfilePage() {
                   <input
                     inputMode="numeric"
                     pattern="\d*"
+                    maxLength={10}
                     value={editData.phone ?? ''}
-                    onChange={(e) => ch('phone', e.target.value.replace(/\D/g, ''))}
+                    onChange={(e) => ch('phone', e.target.value.replace(/\D/g, '').slice(0, 11))}
                     placeholder="9171234567"
                     className="profile-input flex-1"
                   />
@@ -267,8 +270,11 @@ export default function AdminProfilePage() {
               <EditField label="Contact Person No." wide>
                 <input
                   inputMode="numeric"
+                  pattern="\d*"
+                  maxLength={11}
+                  placeholder="9171234567 or 09171234567"
                   value={editData.contact_person_phone ?? ''}
-                  onChange={(e) => ch('contact_person_phone', e.target.value)}
+                  onChange={(e) => ch('contact_person_phone', e.target.value.replace(/\D/g, '').slice(0, 11))}
                   className="profile-input"
                 />
               </EditField>
@@ -382,13 +388,16 @@ export default function AdminProfilePage() {
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 px-6 py-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-base text-zinc-800 dark:text-zinc-100">Personal & Contact Info</h3>
-                <button
-                  onClick={openEdit}
-                  className="flex items-center gap-1.5 text-sm font-semibold text-violet-600 border border-violet-300 rounded-lg px-3 py-1.5 hover:bg-violet-50 transition-colors"
-                >
-                  <Edit3 size={13} />
-                  Edit
-                </button>
+                <div className="flex items-center gap-2">
+                  <UpdatePasswordDialog />
+                  <button
+                    onClick={openEdit}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-violet-600 border border-violet-300 rounded-lg px-3 py-1.5 hover:bg-violet-50 transition-colors"
+                  >
+                    <Edit3 size={13} />
+                    Edit
+                  </button>
+                </div>
               </div>
               <div className="space-y-2.5">
                 <InfoRow label="Username" value={user?.user_name} />

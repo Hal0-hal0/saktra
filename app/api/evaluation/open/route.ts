@@ -29,28 +29,40 @@ export async function PATCH(request: Request) {
     return auth.error
   }
 
-  const { eventId, evaluationDeadline } = await request.json()
-  const eventIdNumber = Number(eventId)
+  const body = await request.json()
+  const { eventId, eventIds, evaluationDeadline } = body as {
+    eventId?: string | number
+    eventIds?: Array<string | number>
+    evaluationDeadline?: string
+  }
 
-  if (!eventId || Number.isNaN(eventIdNumber)) {
-    return Response.json({ error: "Event is required." }, { status: 400 })
+  const rawIds = Array.isArray(eventIds) && eventIds.length ? eventIds : eventId !== undefined ? [eventId] : []
+  const eventIdNumbers = rawIds
+    .map((id) => Number(id))
+    .filter((id) => !Number.isNaN(id))
+
+  if (eventIdNumbers.length === 0) {
+    return Response.json({ error: "At least one event is required." }, { status: 400 })
   }
 
   if (!evaluationDeadline) {
     return Response.json({ error: "Evaluation close date is required." }, { status: 400 })
   }
 
-  const { data: targetEvent, error: targetError } = await supabaseAdmin
+  const { data: targetEvents, error: targetError } = await supabaseAdmin
     .from("events")
     .select("id, status")
-    .eq("id", eventIdNumber)
-    .single()
+    .in("id", eventIdNumbers)
 
-  if (targetError || !targetEvent) {
-    return Response.json({ error: "Selected event was not found." }, { status: 404 })
+  if (targetError || !targetEvents || targetEvents.length === 0) {
+    return Response.json({ error: "Selected events were not found." }, { status: 404 })
   }
 
-  if (targetEvent.status !== "done") {
+  if (targetEvents.length !== eventIdNumbers.length) {
+    return Response.json({ error: "One or more selected events could not be found." }, { status: 404 })
+  }
+
+  if (targetEvents.some((event) => event.status !== "done")) {
     return Response.json({ error: "Only completed events can be opened for evaluation." }, { status: 400 })
   }
 
@@ -60,11 +72,11 @@ export async function PATCH(request: Request) {
       evaluation_open: true,
       evaluation_deadline: evaluationDeadline,
     })
-    .eq("id", eventIdNumber)
+    .in("id", eventIdNumbers)
 
   if (openError) {
     return Response.json({ error: openError.message }, { status: 400 })
   }
 
-  return Response.json({ success: true })
+  return Response.json({ success: true, count: eventIdNumbers.length })
 }

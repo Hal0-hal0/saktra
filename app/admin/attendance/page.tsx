@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog"
 import { Spinner } from "@/components/ui/spinner"
 import { Separator } from "@/components/ui/separator"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { toast } from "sonner"
 
 type EventRecord = {
@@ -85,7 +86,11 @@ const AttendancePage = () => {
         return
       }
 
-      setEvents((data as EventRecord[]) ?? [])
+      const normalized = ((data ?? []) as Array<EventRecord & { id: string | number }>).map((row) => ({
+        ...row,
+        id: String(row.id),
+      })) as EventRecord[]
+      setEvents(normalized)
       setLoading(false)
     }
 
@@ -287,19 +292,24 @@ const AttendancePage = () => {
                   Every user who has scanned a QR code is recorded here. Filter by event to see attendance for a specific one.
                 </CardDescription>
               </div>
-              <div className="min-w-48">
-                <select
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              <div className="w-full min-w-48 sm:w-72">
+                <SearchableSelect
                   value={attendanceEventId}
-                  onChange={(e) => setAttendanceEventId(e.target.value)}
-                >
-                  <option value="all">All events</option>
-                  {events.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.name}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={setAttendanceEventId}
+                  searchPlaceholder="Search events..."
+                  placeholder="Select event"
+                  emptyText="No events found."
+                  options={[
+                    { value: "all", label: "All events" },
+                    ...events.map((e) => ({
+                      value: e.id,
+                      label: e.name,
+                      description: e.date_start
+                        ? format(parse(e.date_start, "yyyy-MM-dd", new Date()), "MMMM d, yyyy")
+                        : undefined,
+                    })),
+                  ]}
+                />
               </div>
             </div>
           </CardHeader>
@@ -309,7 +319,7 @@ const AttendancePage = () => {
                 attendanceEventId === "all"
                   ? checkIns
                   : checkIns.filter((c) => c.event_id === attendanceEventId)
-              const eventNameById = new Map(events.map((e) => [e.id, e.name]))
+              const eventNameById = new Map(events.map((e) => [String(e.id), e.name]))
               if (filtered.length === 0) {
                 return (
                   <div className="rounded-xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">

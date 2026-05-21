@@ -101,13 +101,6 @@ function EventActions({ event }: { event: Event }) {
           </DropdownMenuItem>
         </EventDrawer>
 
-        <ParticipantsModal eventId={event.id} eventName={event.name}>
-          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-            <Users className="size-4" />
-            <span className="text-accent-foreground">See Participants</span>
-          </DropdownMenuItem>
-        </ParticipantsModal>
-
         <DropdownMenuSeparator />
 
         <AlertDialog>
@@ -217,6 +210,19 @@ export const columns: ColumnDef<Event>[] = [
     accessorKey: "venue",
     header: "Venue",
     cell: ({ row }) => <TruncatedCell content={row.getValue("venue")} />
+  },
+  {
+    id: "participants",
+    header: "Participants",
+    enableSorting: false,
+    cell: ({ row }) => (
+      <ParticipantsModal eventId={row.original.id} eventName={row.original.name}>
+        <Button variant="outline" size="sm" className="h-8 gap-1.5">
+          <Users className="size-3.5" />
+          <span>View</span>
+        </Button>
+      </ParticipantsModal>
+    ),
   },
   {
     id: "actions",

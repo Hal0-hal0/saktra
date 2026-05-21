@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Search, CalendarClock, Calendar, History, LayoutGrid, ArrowUpDown } from 'lucide-react'
+import { Search, CalendarClock, Calendar, LayoutGrid, ArrowUpDown } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -16,16 +16,15 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { EventCard, getEventCategory, type EventCategory } from './event-card'
 import { useUserEvent } from './user-event-provider'
-import { parse, compareAsc, compareDesc } from 'date-fns'
 
-type Tab = 'all' | EventCategory
+type VisibleCategory = Exclude<EventCategory, 'past'>
+type Tab = 'all' | VisibleCategory
 type RsvpFilter = 'all' | 'accepted' | 'declined' | 'pending'
 
 const tabs: { value: Tab; label: string; icon: React.ReactNode }[] = [
     { value: 'all', label: 'All Events', icon: <LayoutGrid className="size-3.5" /> },
     { value: 'ongoing', label: 'Ongoing', icon: <CalendarClock className="size-3.5" /> },
     { value: 'upcoming', label: 'Upcoming', icon: <Calendar className="size-3.5" /> },
-    { value: 'past', label: 'Past', icon: <History className="size-3.5" /> },
 ]
 
 const rsvpFilterLabels: Record<RsvpFilter, string> = {
@@ -41,8 +40,13 @@ export default function UserEventsPage() {
     const [activeTab, setActiveTab] = useState<Tab>('all')
     const [rsvpFilter, setRsvpFilter] = useState<RsvpFilter>('all')
 
+    const activeEvents = useMemo(
+        () => events.filter((event) => getEventCategory(event) !== 'past'),
+        [events]
+    )
+
     const filtered = useMemo(() => {
-        const result = events.filter((event) => {
+        const result = activeEvents.filter((event) => {
             const matchesTab =
                 activeTab === 'all' || getEventCategory(event) === activeTab
 
@@ -61,13 +65,16 @@ export default function UserEventsPage() {
         })
 
         return result
-    }, [events, activeTab, search, rsvpFilter])
+    }, [activeEvents, activeTab, search, rsvpFilter])
 
     const counts = useMemo(() => {
-        const result: Record<string, number> = { all: events.length, ongoing: 0, upcoming: 0, past: 0 }
-        events.forEach((e) => { result[getEventCategory(e)]++ })
+        const result: Record<string, number> = { all: activeEvents.length, ongoing: 0, upcoming: 0 }
+        activeEvents.forEach((e) => {
+            const cat = getEventCategory(e)
+            if (cat !== 'past') result[cat]++
+        })
         return result
-    }, [events])
+    }, [activeEvents])
 
     if (loading) {
         return (

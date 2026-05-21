@@ -85,7 +85,6 @@ export function ButtonInviteUser() {
   const validate = (): string | null => {
     if (!email || !selectedRole || !password) return 'Please fill in all fields'
     if ((isExecutiveInvite || isMemberInvite) && !department) return 'Please select a department.'
-    if (isMemberInvite && !position) return 'Please select a position.'
     if (isBodInvite && !bodPosition) return 'Please select a BOD position.'
     return null
   }
@@ -213,10 +212,13 @@ export function ButtonInviteUser() {
 
             {isMemberInvite && department ? (
             <Field>
-                <Label>Position</Label>
+                <Label>
+                  Position{' '}
+                  <span className="text-xs font-normal text-muted-foreground">(optional — defaults to Member)</span>
+                </Label>
                 <Select value={position} onValueChange={setPosition}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a position" />
+                    <SelectValue placeholder="Select a position (optional)" />
                   </SelectTrigger>
                   <SelectContent>
                     {departmentOptions.find((item) => item.value === department)?.positions.map((pos) => (
