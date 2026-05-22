@@ -78,5 +78,50 @@ export async function PATCH(request: Request) {
     return Response.json({ error: closeError.message }, { status: 400 })
   }
 
+  // Propagate the event's average to every participant's user_scores row so it
+  // appears in their My Performance view. Set covers both attendees (checked in)
+  // and accepted-RSVP evaluators — anyone who can legitimately see this event's
+  // result in their own scorecard.
+  if (averageScore !== null) {
+    const { data: participants } = await supabaseAdmin
+      .from("event_rsvp")
+      .select("user_id")
+      .eq("event_id", eventIdNumber)
+      .eq("status", "accepted")
+
+    const userIds = Array.from(
+      new Set((participants ?? []).map((row) => row.user_id).filter(Boolean))
+    ) as string[]
+
+    if (userIds.length > 0) {
+      const { data: existing } = await supabaseAdmin
+        .from("user_scores")
+        .select("user_id")
+        .eq("event_id", eventIdNumber)
+        .in("user_id", userIds)
+
+      const existingIds = new Set((existing ?? []).map((r) => r.user_id))
+      const toInsert = userIds
+        .filter((id) => !existingIds.has(id))
+        .map((id) => ({
+          user_id: id,
+          event_id: eventIdNumber,
+          event_evaluation_score: averageScore,
+        }))
+
+      if (toInsert.length > 0) {
+        await supabaseAdmin.from("user_scores").insert(toInsert)
+      }
+
+      if (existingIds.size > 0) {
+        await supabaseAdmin
+          .from("user_scores")
+          .update({ event_evaluation_score: averageScore })
+          .eq("event_id", eventIdNumber)
+          .in("user_id", Array.from(existingIds))
+      }
+    }
+  }
+
   return Response.json({ success: true, event_eval_score: averageScore })
 }

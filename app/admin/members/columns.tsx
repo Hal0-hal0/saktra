@@ -139,52 +139,62 @@ export const columns: ColumnDef<Payment>[] = [
   {
     id: "actions",
     accessorKey: "Actions",
-    cell: ({ row }) => {
-      const user = row.original
-
-      const handleDelete = async () => {
-        const res = await fetch('/api/delete-user', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.user_id })
-        })
-
-        const { error } = await res.json()
-        if (error) throw new Error(error)
-        toast.success('User deleted!', { position: "top-center" })
-      }
-
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <UpdateDrawer user={user}>
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                <PencilLineIcon />Update User
-              </DropdownMenuItem>
-            </UpdateDrawer>
-
-            <DropdownMenuSeparator />
-
-            <DeleteConfirmDialog
-              title={<>Delete user <span className="font-bold">{user.email}</span>?</>}
-              description="This is irreversible. The account is removed from authentication and all profile data is wiped from the database."
-              onConfirm={handleDelete}
-            >
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                <DeleteRoundedIcon />
-                <span className="text-destructive">Delete</span>
-              </DropdownMenuItem>
-            </DeleteConfirmDialog>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )
-    },
+    cell: ({ row }) => <MemberActions user={row.original} />,
   },
 ]
+
+function MemberActions({ user }: { user: Payment }) {
+  const { currentUserId } = useProfiles()
+  const isSelf = currentUserId === user.user_id
+
+  const handleDelete = async () => {
+    const res = await fetch('/api/delete-user', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user.user_id })
+    })
+
+    const { error } = await res.json()
+    if (error) throw new Error(error)
+    toast.success('User deleted!', { position: "top-center" })
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <span className="sr-only">Open menu</span>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+        <UpdateDrawer user={user}>
+          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+            <PencilLineIcon />Update User
+          </DropdownMenuItem>
+        </UpdateDrawer>
+
+        <DropdownMenuSeparator />
+
+        {isSelf ? (
+          <DropdownMenuItem disabled>
+            <DeleteRoundedIcon />
+            <span>Delete (self-delete blocked)</span>
+          </DropdownMenuItem>
+        ) : (
+          <DeleteConfirmDialog
+            title={<>Delete user <span className="font-bold">{user.email}</span>?</>}
+            description="This is irreversible. The account is removed from authentication and all profile data is wiped from the database."
+            onConfirm={handleDelete}
+          >
+            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+              <DeleteRoundedIcon />
+              <span className="text-destructive">Delete</span>
+            </DropdownMenuItem>
+          </DeleteConfirmDialog>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}

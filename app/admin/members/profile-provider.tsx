@@ -8,6 +8,7 @@ const ProfileContext = createContext<any>(null)
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [profiles, setProfiles] = useState<any[]>([])
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState (true)
 
   const fetchProfiles = async () => {
@@ -18,6 +19,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
 useEffect(() => {
   fetchProfiles()
+  supabase.auth.getClaims().then(({ data }) => {
+    setCurrentUserId(data?.claims?.sub ?? null)
+  })
 
   const channel = supabase
     .channel(`profiles-realtime-members`)
@@ -31,17 +35,17 @@ useEffect(() => {
     )
     .subscribe((status) => {
       console.log('Realtime status:', status)
-    }) 
+    })
 
   return () => {
-    supabase.removeChannel(channel) 
+    supabase.removeChannel(channel)
   }
 }, [])
 
   return (
-    <ProfileContext.Provider value={{ profiles }}>
+    <ProfileContext.Provider value={{ profiles, currentUserId }}>
       {loading ? <SkeletonMembers/> : children }
-      
+
     </ProfileContext.Provider>
   )
 }

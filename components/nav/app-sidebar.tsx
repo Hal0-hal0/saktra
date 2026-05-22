@@ -36,6 +36,7 @@ const adminNav = [
 const execNav = [
   { title: "Dashboard Exec", url: "/admin", icon: <LayoutDashboardIcon /> },
   { title: "Events", url: "/users/events", icon: <CalendarDaysIcon /> },
+  { title: "Scan Attendance", url: "/users/scan", icon: <ScanLineIcon /> },
   { title: "My Performance", url: "/users/myPerformance", icon: <ChartBarIcon /> },
 ]
 

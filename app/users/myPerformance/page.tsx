@@ -24,6 +24,7 @@ interface UserScore {
   event_evaluation_score: number | null
   member_evaluation_score: number | null
   average_score: number | null
+  attendance_score: number | null
   created_at: string
 }
 
@@ -33,6 +34,7 @@ interface Statistics {
   highestScore: number
   lowestScore: number
   standardDeviation: number
+  averageAttendance: number
 }
 
 type SortBy = 'score' | 'date' | 'name'
@@ -85,17 +87,60 @@ export default function ScoresPage() {
     // Fetch event names to join with scores
     if (scoresData && scoresData.length > 0) {
       const eventIds = [...new Set(scoresData.map(s => s.event_id))]
-      const { data: eventsData } = await supabase
-        .from('events')
-        .select('id, name')
-        .in('id', eventIds)
+      const [{ data: eventsData }, { data: rsvpData }] = await Promise.all([
+        supabase
+          .from('events')
+          .select('id, name, event_eval_score')
+          .in('id', eventIds),
+        supabase
+          .from('event_rsvp')
+          .select('event_id, points_awarded, checked_in_at')
+          .eq('user_id', userId)
+          .not('checked_in_at', 'is', null),
+      ])
 
       const eventMap = new Map(eventsData?.map(e => [e.id, e.name]) || [])
+      // Fallback: per-event average (events.event_eval_score) for rows where
+      // user_scores.event_evaluation_score wasn't backfilled at close time.
+      const eventScoreMap = new Map<number, number | null>(
+        eventsData?.map((e: any) => [
+          e.id,
+          e.event_eval_score !== null && e.event_eval_score !== undefined
+            ? Number(e.event_eval_score)
+            : null,
+        ]) || []
+      )
+      const attendanceMap = new Map<number, number>()
+      rsvpData?.forEach((r: any) => {
+        const id = Number(r.event_id)
+        if (!Number.isFinite(id)) return
+        attendanceMap.set(id, Number(r.points_awarded ?? 0))
+      })
 
-      const enrichedScores: UserScore[] = scoresData.map(score => ({
-        ...score,
-        event_name: eventMap.get(score.event_id) || 'Unknown Event'
-      }))
+      const enrichedScores: UserScore[] = scoresData.map(score => {
+        const eventEval =
+          score.event_evaluation_score !== null && score.event_evaluation_score !== undefined
+            ? Number(score.event_evaluation_score)
+            : eventScoreMap.get(score.event_id) ?? null
+        const memberEval =
+          score.member_evaluation_score !== null && score.member_evaluation_score !== undefined
+            ? Number(score.member_evaluation_score)
+            : null
+        const avg =
+          eventEval !== null && memberEval !== null
+            ? Number(((eventEval + memberEval) / 2).toFixed(2))
+            : eventEval ?? memberEval ?? null
+
+        return {
+          ...score,
+          event_evaluation_score: eventEval,
+          average_score: avg,
+          event_name: eventMap.get(score.event_id) || 'Unknown Event',
+          attendance_score: attendanceMap.has(score.event_id)
+            ? attendanceMap.get(score.event_id) ?? 0
+            : null,
+        }
+      })
 
       setScores(enrichedScores)
     } else {
@@ -106,13 +151,21 @@ export default function ScoresPage() {
   }
 
   const statistics = useMemo<Statistics>(() => {
+    const attendancePoints = scores
+      .map(s => s.attendance_score)
+      .filter((v): v is number => typeof v === 'number')
+    const averageAttendance = attendancePoints.length
+      ? Number((attendancePoints.reduce((a, b) => a + b, 0) / attendancePoints.length).toFixed(2))
+      : 0
+
     if (scores.length === 0) {
       return {
         overallAverage: 0,
         totalEventsAttended: 0,
         highestScore: 0,
         lowestScore: 0,
-        standardDeviation: 0
+        standardDeviation: 0,
+        averageAttendance,
       }
     }
 
@@ -126,7 +179,8 @@ export default function ScoresPage() {
         totalEventsAttended: scores.length,
         highestScore: 0,
         lowestScore: 0,
-        standardDeviation: 0
+        standardDeviation: 0,
+        averageAttendance,
       }
     }
 
@@ -145,7 +199,8 @@ export default function ScoresPage() {
       totalEventsAttended: scores.length,
       highestScore: highest,
       lowestScore: lowest,
-      standardDeviation: Number(stdDev.toFixed(2))
+      standardDeviation: Number(stdDev.toFixed(2)),
+      averageAttendance,
     }
   }, [scores])
 
@@ -180,7 +235,7 @@ export default function ScoresPage() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Overall Average</CardTitle>
@@ -188,6 +243,16 @@ export default function ScoresPage() {
           <CardContent>
             <div className="text-3xl font-bold">{statistics.overallAverage.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground mt-1">Out of 5.0</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Avg Attendance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{statistics.averageAttendance.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Avg points per check-in</p>
           </CardContent>
         </Card>
 
@@ -305,6 +370,7 @@ export default function ScoresPage() {
                     <th className="px-4 py-3 text-left font-medium">Event Name</th>
                     <th className="px-4 py-3 text-left font-medium">Event Score</th>
                     <th className="px-4 py-3 text-left font-medium">Member Score</th>
+                    <th className="px-4 py-3 text-left font-medium">Attendance</th>
                     <th className="px-4 py-3 text-left font-medium">Average</th>
                     <th className="px-4 py-3 text-left font-medium">Date</th>
                   </tr>
@@ -312,13 +378,13 @@ export default function ScoresPage() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-3 text-center text-muted-foreground">
+                      <td colSpan={6} className="px-4 py-3 text-center text-muted-foreground">
                         Loading...
                       </td>
                     </tr>
                   ) : filteredAndSortedScores.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-3 text-center text-muted-foreground">
+                      <td colSpan={6} className="px-4 py-3 text-center text-muted-foreground">
                         {scores.length === 0 ? 'No scores yet. Attend more events!' : 'No matching scores'}
                       </td>
                     </tr>
@@ -336,6 +402,11 @@ export default function ScoresPage() {
                         <td className="px-4 py-3">
                           {score.member_evaluation_score !== null
                             ? Number(score.member_evaluation_score).toFixed(2)
+                            : '-'}
+                        </td>
+                        <td className="px-4 py-3">
+                          {score.attendance_score !== null
+                            ? `+${Number(score.attendance_score).toFixed(0)}`
                             : '-'}
                         </td>
                         <td className="px-4 py-3 font-semibold">

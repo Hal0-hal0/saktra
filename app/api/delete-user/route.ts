@@ -26,6 +26,15 @@ export async function DELETE(request: Request) {
     return Response.json({ error: 'Only Board of Directors can delete users' }, { status: 403 })
   }
 
+  // Self-deletion is forbidden — a BOD must not be able to remove their own
+  // account (security: avoids accidental lockout and orphaned sessions).
+  if (callerId === userId) {
+    return Response.json(
+      { error: 'You cannot delete your own account. Ask another Board of Directors member to remove it.' },
+      { status: 400 },
+    )
+  }
+
   // Look up the target so we can enforce the "at least one BOD remains" rule.
   const { data: targetProfile, error: targetErr } = await supabaseAdmin
     .from('profiles')

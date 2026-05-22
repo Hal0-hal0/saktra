@@ -514,7 +514,16 @@ export default function MemberEvaluationList() {
                           <UsersRound className="size-4" />
                           Member evaluation
                         </div>
-                        <Button type="button" onClick={() => openEvaluationForm(target)} disabled={isVerifying}>
+                        <Button
+                          type="button"
+                          className={
+                            isSubmitted
+                              ? "bg-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700"
+                              : undefined
+                          }
+                          onClick={() => openEvaluationForm(target)}
+                          disabled={isVerifying}
+                        >
                           {isVerifying && <Spinner data-icon="inline-start" />}
                           {isSubmitted ? "Review" : "Evaluate"}
                         </Button>

@@ -785,7 +785,7 @@ export default function EventEvaluationSection() {
       )}
 
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="!max-w-7xl">
+        <DialogContent className="!max-w-7xl !max-h-[90vh] !flex !flex-col">
           <DialogHeader>
             <DialogTitle>{selectedEvent?.name || "Evaluation Details"}</DialogTitle>
             <DialogDescription>
@@ -794,7 +794,7 @@ export default function EventEvaluationSection() {
           </DialogHeader>
 
           {selectedEvent ? (
-            <div className="space-y-5">
+            <div className="flex-1 min-h-0 space-y-5 overflow-y-auto pr-1">
               <div className="grid gap-3 md:grid-cols-5">
                 <div className="rounded-2xl border bg-muted/40 p-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -893,7 +893,7 @@ export default function EventEvaluationSection() {
                   No submitted responses for this event yet.
                 </div>
               ) : (
-                <div className="max-h-[55vh] space-y-4 overflow-y-auto pr-1">
+                <div className="space-y-4 pr-1">
                   {criterionAverages.map((item) => (
                     <Card key={item.criteriaId} className="border-dashed">
                       <CardHeader>

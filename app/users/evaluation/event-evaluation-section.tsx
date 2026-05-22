@@ -289,6 +289,11 @@ export default function UserEventEvaluationSection() {
                 </p>
                 <Button
                   type="button"
+                  className={
+                    isSubmitted
+                      ? "bg-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700"
+                      : undefined
+                  }
                   onClick={() => {
                     setSelectedEventId(event.id)
                     setFormOpen(true)

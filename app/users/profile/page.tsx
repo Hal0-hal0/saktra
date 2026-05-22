@@ -88,6 +88,14 @@ export default function UserProfilePage() {
 
   useEffect(() => { loadProfile(); }, []);
 
+  // Stored contact phone is "+63 9171234567" (country code + digits). The edit
+  // form takes digits only, so strip the prefix on load and re-attach on save.
+  const stripContactPrefix = (raw: string): string => {
+    const digits = String(raw ?? '').replace(/\D/g, '');
+    if (digits.length === 12 && digits.startsWith('63')) return digits.slice(2);
+    return digits.slice(-11);
+  };
+
   const openEdit = () => {
     setEditData({
       first_name: user?.first_name ?? '',
@@ -100,12 +108,18 @@ export default function UserProfilePage() {
       school: user?.school ?? '',
       contact_person: user?.contact_person ?? '',
       contact_person_relationship: user?.contact_person_relationship ?? '',
-      contact_person_phone: user?.contact_person_phone ?? '',
+      contact_person_phone: stripContactPrefix(user?.contact_person_phone ?? ''),
     });
     setEditing(true);
   };
 
-  const TODAY = new Date().toISOString().slice(0, 10);
+  const MIN_AGE = 15;
+  const MIN_BIRTHDAY = (() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - MIN_AGE);
+    return d.toISOString().slice(0, 10);
+  })();
+  const TODAY = MIN_BIRTHDAY;
 
   const handleSave = async () => {
     // Client-side validation matching the account-setup rules.
@@ -114,14 +128,28 @@ export default function UserProfilePage() {
     if (!(editData.last_name ?? '').toString().trim()) { toast.error('Last name is required'); return; }
     if (editData.phone && !/^(09\d{9}|9\d{9})$/.test(String(editData.phone))) { toast.error('Phone must be 09xxxxxxxxx (11 digits) or 9xxxxxxxxx (10 digits)'); return; }
     if (editData.contact_person_phone && !/^(09\d{9}|9\d{9})$/.test(String(editData.contact_person_phone))) { toast.error('Contact phone must be 09xxxxxxxxx (11 digits) or 9xxxxxxxxx (10 digits)'); return; }
-    if (editData.birthday && String(editData.birthday) >= today) { toast.error('Birthday must be in the past'); return; }
+    if (editData.birthday && String(editData.birthday) >= today) { toast.error('Please enter a valid date of birth.'); return; }
+    if (editData.birthday) {
+      const birth = new Date(String(editData.birthday));
+      const now = new Date();
+      let age = now.getFullYear() - birth.getFullYear();
+      const m = now.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--;
+      if (age < MIN_AGE) { toast.error(`KaSAKDAG members must be at least ${MIN_AGE} years old.`); return; }
+    }
 
     setSaving(true);
     try {
+      const payload = {
+        ...editData,
+        contact_person_phone: editData.contact_person_phone
+          ? `+63 ${editData.contact_person_phone}`
+          : editData.contact_person_phone,
+      };
       const res = await fetch('/api/update-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editData),
+        body: JSON.stringify(payload),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error ?? 'Update failed');
@@ -129,6 +157,7 @@ export default function UserProfilePage() {
       setUser(prev => prev ? {
         ...prev,
         ...editData,
+        contact_person_phone: payload.contact_person_phone ?? prev.contact_person_phone,
         full_name: `${editData.first_name ?? prev.first_name ?? ''} ${editData.last_name ?? prev.last_name ?? ''}`.trim() || prev.full_name,
       } : prev);
       setEditing(false);
