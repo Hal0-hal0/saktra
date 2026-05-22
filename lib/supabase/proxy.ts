@@ -49,6 +49,16 @@ export async function updateSession(request: NextRequest) {
         .eq('user_id', user.sub)
         .single()
 
+      // If the signed-in user's profile is gone (deleted by an admin), the
+      // session cookie is orphaned. Sign them out so they land on /login
+      // instead of being redirected back into /account-setup forever.
+      if (!setupProfile) {
+        await supabase.auth.signOut()
+        const url = request.nextUrl.clone()
+        url.pathname = '/login'
+        return NextResponse.redirect(url)
+      }
+
       const isComplete = setupProfile?.is_setup_complete === true
 
       if (!isComplete && !isSetupPath) {

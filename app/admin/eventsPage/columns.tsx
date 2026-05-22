@@ -184,14 +184,44 @@ export const columns: ColumnDef<Event>[] = [
   },
   {
     accessorKey: "date_start",
-    header: "Event Start",
+    sortingFn: (a, b) => {
+      const aDate = `${a.original.date_start ?? ""} ${a.original.time_start ?? ""}`
+      const bDate = `${b.original.date_start ?? ""} ${b.original.time_start ?? ""}`
+      return aDate.localeCompare(bDate)
+    },
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Event Start
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
   },
   {
     accessorKey: "date_end",
-    header: "Event End",
+    sortingFn: (a, b) => {
+      const aDate = `${a.original.date_end ?? ""} ${a.original.time_end ?? ""}`
+      const bDate = `${b.original.date_end ?? ""} ${b.original.time_end ?? ""}`
+      return aDate.localeCompare(bDate)
+    },
     cell: ({ row }) => {
       return <span className="capitalize">{row.getValue("date_end")}</span>
-    }
+    },
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Event End
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
   },
   {
     accessorKey: "time_start",

@@ -59,6 +59,14 @@ export function DeleteConfirmDialog({
   const [password, setPassword] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
   const [loading, setLoading] = React.useState(false)
+  const [adminEmail, setAdminEmail] = React.useState("")
+
+  React.useEffect(() => {
+    if (!open) return
+    supabase.auth.getSession().then(({ data }) => {
+      setAdminEmail(data.session?.user?.email ?? "")
+    })
+  }, [open])
 
   const handleConfirm = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -108,10 +116,28 @@ export function DeleteConfirmDialog({
           ) : null}
         </AlertDialogHeader>
 
-        <div className="grid gap-2 px-1 pb-2">
+        <form
+          className="grid gap-2 px-1 pb-2"
+          onSubmit={(e) => e.preventDefault()}
+        >
+          {/* Hidden username so password-manager autofill associates the
+              password with the admin's email and doesn't leak into nearby
+              text inputs (e.g. the members search bar). */}
+          <input
+            type="email"
+            name="username"
+            autoComplete="username"
+            value={adminEmail}
+            readOnly
+            tabIndex={-1}
+            aria-hidden="true"
+            className="sr-only"
+          />
           <Label htmlFor="confirm-password">Confirm with your password</Label>
           <PasswordInput
             id="confirm-password"
+            name="current-password"
+            autoComplete="current-password"
             placeholder="Your account password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -120,7 +146,7 @@ export function DeleteConfirmDialog({
           {error && (
             <p className="text-xs font-medium text-destructive">{error}</p>
           )}
-        </div>
+        </form>
 
         <AlertDialogFooter>
           <AlertDialogCancel variant="outline" disabled={loading}>

@@ -122,6 +122,8 @@ export function DataTable<TData, TValue>({
       <div className="flex items-center py-4 gap-5">
         <ButtonInviteUser />
         <Input
+          name="members-search"
+          autoComplete="off"
           placeholder="Search by name, email, role, department, status..."
           value={globalFilter}
           onChange={(event) => setGlobalFilter(event.target.value)}

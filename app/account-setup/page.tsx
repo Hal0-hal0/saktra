@@ -49,6 +49,21 @@ const COUNTRY_CODES = [
 ];
 
 const TODAY_ISO = new Date().toISOString().slice(0, 10);
+const MIN_AGE = 15;
+const MIN_BIRTHDAY_ISO = (() => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - MIN_AGE);
+  return d.toISOString().slice(0, 10);
+})();
+
+function getAge(birthdayIso: string): number {
+  const today = new Date();
+  const birth = new Date(birthdayIso);
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+}
 
 export default function AccountSetup() {
   const router = useRouter();
@@ -162,7 +177,11 @@ export default function AccountSetup() {
       if (!form.phone.trim()) { toast.error('Phone number is required'); return false; }
       if (!/^(09\d{9}|9\d{9})$/.test(form.phone)) { toast.error('Phone must be 09xxxxxxxxx (11 digits) or 9xxxxxxxxx (10 digits)'); return false; }
       if (!form.birthday) { toast.error('Birthday is required'); return false; }
-      if (form.birthday >= TODAY_ISO) { toast.error('Birthday must be in the past'); return false; }
+      if (form.birthday >= TODAY_ISO) { toast.error('Please enter a valid date of birth.'); return false; }
+      if (getAge(form.birthday) < MIN_AGE) {
+        toast.error(`KaSAKDAG members must be at least ${MIN_AGE} years old.`);
+        return false;
+      }
       if (!form.home_address.trim()) { toast.error('Home address is required'); return false; }
       if (!form.school.trim()) { toast.error('School is required'); return false; }
     }
@@ -380,8 +399,9 @@ export default function AccountSetup() {
               </FieldRow>
               <FieldRow icon={<Calendar className="w-4 h-4 text-violet-500" />} label="Birthday">
                 <input name="birthday" type="date" value={form.birthday} onChange={handleChange}
-                  max={TODAY_ISO}
+                  max={MIN_BIRTHDAY_ISO}
                   className="field-input" />
+                <p className="text-[10px] text-zinc-400 mt-1">Members must be at least {MIN_AGE} years old.</p>
               </FieldRow>
               <FieldRow icon={<MapPin className="w-4 h-4 text-violet-500" />} label="Home Address">
                 <input name="home_address" value={form.home_address} onChange={handleChange}
