@@ -132,7 +132,10 @@ export default function AdminScoresPage() {
 
   const fetchEventScores = async () => {
     const [{ data: events }, { data: responses }] = await Promise.all([
-      supabase.from('events').select('id, name, status, event_eval_score, date_start, date_end'),
+      supabase
+        .from('events')
+        .select('id, name, status, event_eval_score, date_start, date_end, is_hidden')
+        .or('is_hidden.is.null,is_hidden.eq.false'),
       supabase.from('response').select('event_id'),
     ])
     const responseCount = new Map<number, number>()
@@ -141,16 +144,25 @@ export default function AdminScoresPage() {
       if (!Number.isFinite(id)) return
       responseCount.set(id, (responseCount.get(id) ?? 0) + 1)
     })
+    // Only list events that were actually evaluated (have a response on file)
+    // or currently hold a score. Reset clears the score but leaves the responses
+    // intact, so these rows stay visible with "—" in the score column.
     setEventScores(
-      (events ?? []).map((e: any) => ({
-        id: Number(e.id),
-        name: e.name ?? 'Untitled event',
-        status: e.status,
-        event_eval_score: e.event_eval_score !== null ? Number(e.event_eval_score) : null,
-        date_start: e.date_start,
-        date_end: e.date_end,
-        response_count: responseCount.get(Number(e.id)) ?? 0,
-      })),
+      (events ?? [])
+        .filter((e: any) => {
+          const hasResponses = (responseCount.get(Number(e.id)) ?? 0) > 0
+          const hasScore = e.event_eval_score !== null && e.event_eval_score !== undefined
+          return hasResponses || hasScore
+        })
+        .map((e: any) => ({
+          id: Number(e.id),
+          name: e.name ?? 'Untitled event',
+          status: e.status,
+          event_eval_score: e.event_eval_score !== null ? Number(e.event_eval_score) : null,
+          date_start: e.date_start,
+          date_end: e.date_end,
+          response_count: responseCount.get(Number(e.id)) ?? 0,
+        })),
     )
   }
 
@@ -239,7 +251,7 @@ export default function AdminScoresPage() {
 
     // Process data
     const summaryMap = new Map<string, MemberScoreSummary>()
-    
+
     // Fetch attendance counts (event_rsvp.checked_in_at not null)
     const { data: rsvpData } = await supabase
       .from('event_rsvp')
@@ -274,7 +286,7 @@ export default function AdminScoresPage() {
         }
         summary.scores.push(enrichedScore)
         summary.total_events += 1
-        
+
         const validScore = Number(score.average_score) || 0
         if (validScore > summary.highest_score) {
           summary.highest_score = validScore
@@ -367,7 +379,6 @@ export default function AdminScoresPage() {
                 <table className="w-full text-sm">
                   <thead className="bg-muted">
                     <tr>
-                      <th className="px-4 py-3 text-left font-medium w-16">Rank</th>
                       <th className="px-4 py-3 text-left font-medium">
                         <button
                           type="button"
@@ -423,14 +434,13 @@ export default function AdminScoresPage() {
                   <tbody>
                     {sortedEventScores.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-3 text-center text-muted-foreground">
+                        <td colSpan={5} className="px-4 py-3 text-center text-muted-foreground">
                           No events with scores yet.
                         </td>
                       </tr>
                     ) : (
-                      sortedEventScores.map((row, i) => (
+                      sortedEventScores.map((row) => (
                         <tr key={row.id} className="border-t hover:bg-muted/50">
-                          <td className="px-4 py-3 font-semibold text-muted-foreground">#{i + 1}</td>
                           <td className="px-4 py-3 font-medium capitalize">{row.name}</td>
                           <td className="px-4 py-3">
                             <Badge variant={row.status === 'done' ? 'secondary' : 'default'}>
@@ -456,7 +466,7 @@ export default function AdminScoresPage() {
                     return (
                       <tfoot className="bg-muted/60 border-t-2 font-semibold">
                         <tr>
-                          <td className="px-4 py-3" colSpan={4}>
+                          <td className="px-4 py-3" colSpan={3}>
                             Total — {eventScores.length} event{eventScores.length === 1 ? '' : 's'}
                           </td>
                           <td className="px-4 py-3">
@@ -759,7 +769,7 @@ export default function AdminScoresPage() {
               Detailed breakdown of scores across all attended events
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="mt-4 space-y-4">
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div className="p-4 bg-muted rounded-lg text-center">

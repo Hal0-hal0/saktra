@@ -90,7 +90,7 @@ export default function ScoresPage() {
       const [{ data: eventsData }, { data: rsvpData }] = await Promise.all([
         supabase
           .from('events')
-          .select('id, name')
+          .select('id, name, event_eval_score')
           .in('id', eventIds),
         supabase
           .from('event_rsvp')
@@ -100,6 +100,16 @@ export default function ScoresPage() {
       ])
 
       const eventMap = new Map(eventsData?.map(e => [e.id, e.name]) || [])
+      // Fallback: per-event average (events.event_eval_score) for rows where
+      // user_scores.event_evaluation_score wasn't backfilled at close time.
+      const eventScoreMap = new Map<number, number | null>(
+        eventsData?.map((e: any) => [
+          e.id,
+          e.event_eval_score !== null && e.event_eval_score !== undefined
+            ? Number(e.event_eval_score)
+            : null,
+        ]) || []
+      )
       const attendanceMap = new Map<number, number>()
       rsvpData?.forEach((r: any) => {
         const id = Number(r.event_id)
@@ -107,13 +117,30 @@ export default function ScoresPage() {
         attendanceMap.set(id, Number(r.points_awarded ?? 0))
       })
 
-      const enrichedScores: UserScore[] = scoresData.map(score => ({
-        ...score,
-        event_name: eventMap.get(score.event_id) || 'Unknown Event',
-        attendance_score: attendanceMap.has(score.event_id)
-          ? attendanceMap.get(score.event_id) ?? 0
-          : null,
-      }))
+      const enrichedScores: UserScore[] = scoresData.map(score => {
+        const eventEval =
+          score.event_evaluation_score !== null && score.event_evaluation_score !== undefined
+            ? Number(score.event_evaluation_score)
+            : eventScoreMap.get(score.event_id) ?? null
+        const memberEval =
+          score.member_evaluation_score !== null && score.member_evaluation_score !== undefined
+            ? Number(score.member_evaluation_score)
+            : null
+        const avg =
+          eventEval !== null && memberEval !== null
+            ? Number(((eventEval + memberEval) / 2).toFixed(2))
+            : eventEval ?? memberEval ?? null
+
+        return {
+          ...score,
+          event_evaluation_score: eventEval,
+          average_score: avg,
+          event_name: eventMap.get(score.event_id) || 'Unknown Event',
+          attendance_score: attendanceMap.has(score.event_id)
+            ? attendanceMap.get(score.event_id) ?? 0
+            : null,
+        }
+      })
 
       setScores(enrichedScores)
     } else {
