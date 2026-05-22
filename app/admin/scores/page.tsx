@@ -131,39 +131,15 @@ export default function AdminScoresPage() {
   }, [])
 
   const fetchEventScores = async () => {
-    const [{ data: events }, { data: responses }] = await Promise.all([
-      supabase
-        .from('events')
-        .select('id, name, status, event_eval_score, date_start, date_end, is_hidden')
-        .or('is_hidden.is.null,is_hidden.eq.false'),
-      supabase.from('response').select('event_id'),
-    ])
-    const responseCount = new Map<number, number>()
-    responses?.forEach((r: any) => {
-      const id = Number(r.event_id)
-      if (!Number.isFinite(id)) return
-      responseCount.set(id, (responseCount.get(id) ?? 0) + 1)
-    })
-    // Only list events that were actually evaluated (have a response on file)
-    // or currently hold a score. Reset clears the score but leaves the responses
-    // intact, so these rows stay visible with "—" in the score column.
-    setEventScores(
-      (events ?? [])
-        .filter((e: any) => {
-          const hasResponses = (responseCount.get(Number(e.id)) ?? 0) > 0
-          const hasScore = e.event_eval_score !== null && e.event_eval_score !== undefined
-          return hasResponses || hasScore
-        })
-        .map((e: any) => ({
-          id: Number(e.id),
-          name: e.name ?? 'Untitled event',
-          status: e.status,
-          event_eval_score: e.event_eval_score !== null ? Number(e.event_eval_score) : null,
-          date_start: e.date_start,
-          date_end: e.date_end,
-          response_count: responseCount.get(Number(e.id)) ?? 0,
-        })),
-    )
+    // Server-side endpoint bypasses RLS on `response` so admins see the full
+    // count across every user (not just rows their own role can read).
+    const res = await fetch('/api/scores/event-scores', { cache: 'no-store' })
+    const json = await res.json()
+    if (!res.ok) {
+      toast.error(json?.error ?? 'Failed to load event scores', { position: 'top-center' })
+      return
+    }
+    setEventScores((json.rows ?? []) as EventScoreRow[])
   }
 
   const handleResetEventScores = async () => {
